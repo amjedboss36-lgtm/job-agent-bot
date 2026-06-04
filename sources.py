@@ -4,127 +4,100 @@ from bs4 import BeautifulSoup
 from filters import is_valid_job_link, is_target_job
 
 HEADERS = {
-"User-Agent": "Mozilla/5.0"
+    "User-Agent": "Mozilla/5.0"
 }
 
 # =========================
-
-# EURES (filtered concept source)
-
+# EURES (placeholder)
 # =========================
-
 def eures_jobs():
-"""
-EURES لا يوفر API مباشر ثابت،
-لذلك نستخدمه كمصدر توجيهي فقط.
-"""
-
-```
-# لاحقاً يمكن تطوير scraper حقيقي للصفحات الفرعية
-return []
-```
+    """
+    EURES is a conceptual source for now.
+    """
+    return []
 
 # =========================
-
-# Indeed RSS (clean extraction)
-
+# Indeed RSS
 # =========================
-
 def indeed_jobs():
-jobs = []
+    jobs = []
 
-```
-queries = [
-    "nursing assistant visa sponsorship",
-    "caregiver sponsorship europe",
-    "healthcare assistant germany",
-    "hospital jobs international",
-    "warehouse worker relocation"
-]
+    queries = [
+        "nursing assistant visa sponsorship",
+        "caregiver sponsorship europe",
+        "healthcare assistant germany",
+        "hospital jobs international",
+        "warehouse worker relocation"
+    ]
 
-for q in queries:
-    try:
-        url = "https://rss.indeed.com/rss?q=" + q.replace(" ", "+")
-        r = requests.get(url, headers=HEADERS, timeout=20)
+    for q in queries:
+        try:
+            url = "https://rss.indeed.com/rss?q=" + q.replace(" ", "+")
+            r = requests.get(url, headers=HEADERS, timeout=20)
 
-        root = ET.fromstring(r.text)
+            root = ET.fromstring(r.text)
 
-        for item in root.findall(".//item"):
-            title = item.findtext("title")
-            link = item.findtext("link")
+            for item in root.findall(".//item"):
+                title = item.findtext("title")
+                link = item.findtext("link")
 
-            job = {
-                "title": title,
-                "link": link,
-                "country": "Indeed",
-                "description": title
-            }
+                job = {
+                    "title": title,
+                    "link": link,
+                    "country": "Indeed",
+                    "description": title
+                }
 
-            if is_target_job(title) and is_valid_job_link(link):
-                jobs.append(job)
+                if is_target_job(title) and is_valid_job_link(link):
+                    jobs.append(job)
 
-    except:
-        continue
+        except:
+            continue
 
-return jobs
-```
+    return jobs
 
 # =========================
-
-# Hospital / Care Jobs (generic career pages)
-
+# Healthcare / Care jobs
 # =========================
-
 def healthcare_career_jobs():
-"""
-مصادر عامة للمستشفيات وشركات الرعاية.
-يتم لاحقاً تطويرها إلى scraping مخصص لكل موقع.
-"""
 
-```
-sources = [
-    {
-        "title": "NHS Jobs (UK Healthcare Portal)",
-        "link": "https://www.jobs.nhs.uk",
-        "country": "UK",
-        "description": "healthcare nursing hospital uk"
-    },
-    {
-        "title": "International Nursing Programs",
-        "link": "https://healthcareers.nhs.uk",
-        "country": "UK",
-        "description": "nursing international training"
-    },
-    {
-        "title": "Care Home Opportunities Europe",
-        "link": "https://www.prelude-innovation.com/careers",
-        "country": "Europe",
-        "description": "caregiver elderly care europe"
-    }
-]
+    sources = [
+        {
+            "title": "NHS Jobs (UK Healthcare Portal)",
+            "link": "https://www.jobs.nhs.uk",
+            "country": "UK",
+            "description": "healthcare nursing hospital uk"
+        },
+        {
+            "title": "International Nursing Programs",
+            "link": "https://healthcareers.nhs.uk",
+            "country": "UK",
+            "description": "nursing international training"
+        },
+        {
+            "title": "Care Home Opportunities Europe",
+            "link": "https://www.prelude-innovation.com/careers",
+            "country": "Europe",
+            "description": "caregiver elderly care europe"
+        }
+    ]
 
-jobs = []
+    jobs = []
 
-for j in sources:
-    if is_target_job(j["description"]):
-        jobs.append(j)
+    for j in sources:
+        if is_target_job(j["description"]):
+            jobs.append(j)
 
-return jobs
-```
+    return jobs
 
 # =========================
-
 # Main collector
-
 # =========================
-
 def collect_all_jobs():
-jobs = []
+    jobs = []
 
-```
-jobs.extend(indeed_jobs())
-jobs.extend(eures_jobs())
-jobs.extend(healthcare_career_jobs())
+    jobs.extend(indeed_jobs())
+    jobs.extend(eures_jobs())
+    jobs.extend(healthcare_career_jobs())
 
-return jobs
-```
+    return jobs
