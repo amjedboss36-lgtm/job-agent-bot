@@ -1,4 +1,4 @@
-from flask import Flask
+name flask import Flask
 import threading
 import time
 import hashlib
@@ -8,7 +8,7 @@ from filters import is_valid_job_link
 from scoring import calculate_score
 from telegram_bot import send_message
 
-app = Flask(**name**)
+app = Flask(_name_)
 
 SENT_FILE = "sent_jobs.txt"
 
