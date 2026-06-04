@@ -60,6 +60,7 @@ def run_agent():
     send_message("🚀 Job Agent Started")
 
     jobs = collect_all_jobs()
+    print("JOBS FOUND:", len(jobs))
     sent = load_sent()
 
     for job in jobs:
