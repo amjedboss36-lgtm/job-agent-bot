@@ -40,17 +40,22 @@ def make_id(job):
 # =========================
 
 def format_report(job, score):
+
+    benefits = job.get("benefits", {})
+
     return f"""
 🌍 {job.get('title')}
 📍 {job.get('country')}
 📊 Match Score: {score}%
+
+💼 Visa: {benefits.get('visa', False)}
+📦 Relocation: {benefits.get('relocation', False)}
 
 🔗 Apply Link:
 {job.get('link')}
 
 ━━━━━━━━━━━━
 """
-
 
 # =========================
 # AGENT CORE
@@ -78,7 +83,8 @@ def run_agent():
 
         report = format_report(job, score)
 
-        send_message(report)
+        print("Sending:", job.get("title"))
+send_message(report)
 
         save_sent(job_id)
 
