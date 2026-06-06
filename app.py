@@ -84,6 +84,8 @@ def run_agent():
         score = calculate_score(job)
 
         report = format_report(job, score)
+        if score < 40:
+    continue
 
         send_message(report)
 
