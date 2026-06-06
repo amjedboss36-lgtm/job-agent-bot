@@ -1,104 +1,64 @@
 import requests
-import xml.etree.ElementTree as ET
-from filters import is_target_job, detect_benefits
+from job_normalizer import normalize_job
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
-
-# =========================
-# EURES (placeholder)
-# =========================
-def eures_jobs():
-    return []
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 # =========================
-# Indeed RSS
+# RemoteOK API (قوي جدًا)
 # =========================
-def indeed_jobs():
+def remoteok_jobs():
     jobs = []
 
-    queries = [
-        "nursing assistant visa sponsorship",
-        "caregiver sponsorship europe",
-        "healthcare assistant germany",
-        "hospital jobs international",
-        "warehouse worker relocation"
-    ]
+    try:
+        url = "https://remoteok.com/api"
+        r = requests.get(url, headers=HEADERS, timeout=20)
+        data = r.json()
 
-    for q in queries:
-        try:
-            url = "https://rss.indeed.com/rss?q=" + q.replace(" ", "+")
-            r = requests.get(url, headers=HEADERS, timeout=20)
+        for item in data:
+            if not isinstance(item, dict):
+                continue
 
-            root = ET.fromstring(r.text)
+            jobs.append(
+                normalize_job(
+                    item.get("position"),
+                    item.get("url"),
+                    item.get("location", "Remote"),
+                    item.get("description", ""),
+                    "RemoteOK"
+                )
+            )
 
-            for item in root.findall(".//item"):
-                title = item.findtext("title")
-                link = item.findtext("link")
-
-                if not title or not link:
-                    continue
-
-                # فلترة مبدئية
-                if not is_target_job(title):
-                    continue
-
-                benefits = detect_benefits(title)
-
-                job = {
-                    "title": title,
-                    "link": link,
-                    "country": "Indeed",
-                    "description": title,
-                    "benefits": benefits
-                }
-
-                jobs.append(job)
-
-        except Exception:
-            continue
+    except:
+        pass
 
     return jobs
 
 
 # =========================
-# Healthcare / Care jobs
+# Arbeitnow API (أوروبا)
 # =========================
-def healthcare_career_jobs():
-
-    sources = [
-        {
-            "title": "NHS Jobs (UK Healthcare Portal)",
-            "link": "https://www.jobs.nhs.uk",
-            "country": "UK",
-            "description": "healthcare nursing hospital uk"
-        },
-        {
-            "title": "International Nursing Programs",
-            "link": "https://healthcareers.nhs.uk",
-            "country": "UK",
-            "description": "nursing international training"
-        },
-        {
-            "title": "Care Home Opportunities Europe",
-            "link": "https://www.prelude-innovation.com/careers",
-            "country": "Europe",
-            "description": "caregiver elderly care europe"
-        }
-    ]
-
+def arbeitnow_jobs():
     jobs = []
 
-    for j in sources:
+    try:
+        url = "https://www.arbeitnow.com/api/job-board-api"
+        r = requests.get(url, headers=HEADERS, timeout=20)
+        data = r.json()
 
-        if not is_target_job(j["description"]):
-            continue
+        for item in data.get("data", []):
+            jobs.append(
+                normalize_job(
+                    item.get("title"),
+                    item.get("url"),
+                    "Europe",
+                    item.get("description", ""),
+                    "Arbeitnow"
+                )
+            )
 
-        j["benefits"] = detect_benefits(j["description"])
-
-        jobs.append(j)
+    except:
+        pass
 
     return jobs
 
@@ -109,9 +69,7 @@ def healthcare_career_jobs():
 def collect_all_jobs():
 
     jobs = []
-
-    jobs.extend(indeed_jobs())
-    jobs.extend(eures_jobs())
-    jobs.extend(healthcare_career_jobs())
+    jobs.extend(remoteok_jobs())
+    jobs.extend(arbeitnow_jobs())
 
     return jobs
