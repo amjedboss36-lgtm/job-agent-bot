@@ -43,3 +43,26 @@ def detect_benefits(text):
         "training": "training" in text,
         "international": "international" in text or "overseas" in text
     }
+
+
+def detect_requirements(text):
+    text = (text or "").lower()
+
+    high_demand_keywords = [
+        "phd", "senior", "5+ years", "10 years",
+        "expert", "lead", "manager", "director"
+    ]
+
+    low_entry_keywords = [
+        "no experience",
+        "entry level",
+        "training provided",
+        "junior",
+        "fresh graduate",
+        "we train"
+    ]
+
+    return {
+        "high_demand": any(x in text for x in high_demand_keywords),
+        "low_entry": any(x in text for x in low_entry_keywords)
+    }
