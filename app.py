@@ -84,7 +84,7 @@ def run_agent():
         report = format_report(job, score)
 
         print("Sending:", job.get("title"))
-send_message(report)
+        send_message(report)
 
         save_sent(job_id)
 
