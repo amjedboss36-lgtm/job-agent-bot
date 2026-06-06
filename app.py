@@ -31,7 +31,11 @@ def save_sent(job_id):
 
 
 def make_id(job):
-    raw = (job.get("title", "") + job.get("link", "")).encode()
+    raw = (
+        (job.get("title", "") +
+         job.get("link", "") +
+         job.get("source", "")).encode()
+    )
     return hashlib.md5(raw).hexdigest()
 
 
@@ -65,7 +69,9 @@ def run_agent():
     send_message("🚀 Job Agent Started")
 
     jobs = collect_all_jobs()
-    print("JOBS FOUND:", len(jobs))
+
+    print("TOTAL JOBS:", len(jobs))
+
     sent = load_sent()
 
     for job in jobs:
@@ -75,21 +81,15 @@ def run_agent():
         if job_id in sent:
             continue
 
-        # VALIDATE LINK
-        if not is_valid_job_link(job.get("link")):
-            continue
-
         score = calculate_score(job)
 
         report = format_report(job, score)
 
-        print("Sending:", job.get("title"))
         send_message(report)
 
         save_sent(job_id)
 
     send_message("✅ Job Agent Completed")
-
 
 # =========================
 # SCHEDULER
