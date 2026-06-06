@@ -1,12 +1,7 @@
 import requests
 
 BAD_PATTERNS = [
-    "eures.europa.eu",
-    "/jobs",
-    "/careers",
-    "/vacancies",
-    "/search",
-    "/find-jobs"
+    "eures.europa.eu"
 ]
 
 def is_valid_job_link(url):
@@ -15,18 +10,13 @@ def is_valid_job_link(url):
 
     url = url.lower()
 
-    # ❗ لا نقتل الوظائف بسبب status code (مهم جدًا)
     if "http" not in url:
         return False
 
     if "eures.europa.eu" in url:
         return False
 
-    for p in BAD_PATTERNS:
-        if p in url:
-            return False
-
-    return True  # 🔥 أهم تعديل: قبول الروابط أولاً
+    return True
 
 
 def is_target_job(text):
