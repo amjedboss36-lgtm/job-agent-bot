@@ -2,58 +2,78 @@ from flask import Flask
 import threading
 import time
 import hashlib
+import sqlite3
 
 from sources import collect_all_jobs
-from filters import is_valid_job_link
 from scoring import calculate_score
 from telegram_bot import send_message
 
 app = Flask(__name__)
 
-SENT_FILE = "sent_jobs.txt"
+DB_FILE = "jobs.db"
 
 
 # =========================
-# SENT SYSTEM (HASH BASED)
+# DATABASE (DEDUP SYSTEM)
 # =========================
 
-def load_sent():
-    try:
-        with open(SENT_FILE, "r") as f:
-            return set(f.read().splitlines())
-    except:
-        return set()
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS sent_jobs (
+            id TEXT PRIMARY KEY
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 
-def save_sent(job_id):
-    with open(SENT_FILE, "a") as f:
-        f.write(job_id + "\n")
+def is_sent(job_id):
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM sent_jobs WHERE id=?", (job_id,))
+    result = cur.fetchone()
+    conn.close()
+    return result is not None
 
+
+def mark_sent(job_id):
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("INSERT OR IGNORE INTO sent_jobs VALUES (?)", (job_id,))
+    conn.commit()
+    conn.close()
+
+
+# =========================
+# JOB ID GENERATOR
+# =========================
 
 def make_id(job):
-    raw = (
-        (job.get("title", "") +
-         job.get("link", "") +
-         job.get("source", "")).encode()
-    )
+    raw = (job.get("title", "") + job.get("link", "")).encode()
     return hashlib.md5(raw).hexdigest()
 
 
 # =========================
-# REPORT FORMAT
+# FORMAT MESSAGE
 # =========================
 
 def format_report(job, score):
 
-    benefits = job.get("benefits", {})
+    text = (job.get("title", "") + " " + job.get("description", "")).lower()
+
+    if "visa" in text or "sponsorship" in text:
+        visa_status = "🎫 Visa: YES"
+    else:
+        visa_status = "❌ Visa: Not confirmed"
 
     return f"""
 🌍 {job.get('title')}
 📍 {job.get('country')}
 📊 Match Score: {score}%
 
-💼 Visa: {benefits.get('visa', False)}
-📦 Relocation: {benefits.get('relocation', False)}
+{visa_status}
 
 🔗 Apply Link:
 {job.get('link')}
@@ -61,37 +81,47 @@ def format_report(job, score):
 ━━━━━━━━━━━━
 """
 
+
 # =========================
-# AGENT CORE
+# CORE ENGINE
 # =========================
 
 def run_agent():
+
     send_message("🚀 Job Agent Started")
 
     jobs = collect_all_jobs()
 
     print("TOTAL JOBS:", len(jobs))
 
-    sent = load_sent()
+    sent_count = 0
+    skipped_low_score = 0
 
     for job in jobs:
 
         job_id = make_id(job)
 
-        if job_id in sent:
+        if is_sent(job_id):
             continue
 
         score = calculate_score(job)
 
-        report = format_report(job, score)
+        # 🔥 مهم: فلترة ذكية
         if score < 40:
+            skipped_low_score += 1
             continue
+
+        report = format_report(job, score)
 
         send_message(report)
 
-        save_sent(job_id)
+        mark_sent(job_id)
+        sent_count += 1
 
-    send_message("✅ Job Agent Completed")
+    send_message(
+        f"✅ Completed\nSent: {sent_count}\nSkipped (low score): {skipped_low_score}"
+    )
+
 
 # =========================
 # SCHEDULER
@@ -102,10 +132,16 @@ def scheduler():
         try:
             run_agent()
         except Exception as e:
-            send_message(f"❌ Error: {e}")
+            send_message(f"❌ Error: {str(e)}")
 
-        time.sleep(86400)
+        time.sleep(86400)  # مرة يومياً
 
+
+# =========================
+# START THREAD
+# =========================
+
+init_db()
 
 threading.Thread(target=scheduler, daemon=True).start()
 
@@ -126,7 +162,7 @@ def run_now():
 
 
 # =========================
-# START
+# START APP
 # =========================
 
 if __name__ == "__main__":
