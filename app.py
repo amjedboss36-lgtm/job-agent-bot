@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template_string
 from scraper import scrape_jobs
 from scoring import calculate_score
 from apply_decision_engine import decide_application_mode
@@ -83,6 +83,190 @@ def safe_compare_score(score, threshold=50):
     except (TypeError, ValueError) as e:
         print(f"⚠️ Error comparing score: {e}")
         return False
+
+
+@app.route("/", methods=["GET"])
+def home():
+    """Home route - redirect to test page"""
+    return "🚀 Job Agent Bot Running. Visit /test for the dashboard."
+
+
+@app.route("/test", methods=["GET"])
+def test_dashboard():
+    """Test dashboard with HTML interface"""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Job Agent Bot - Test Dashboard</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 50px auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            h1 {
+                color: #333;
+                text-align: center;
+            }
+            .button-group {
+                display: flex;
+                gap: 10px;
+                margin: 20px 0;
+                justify-content: center;
+            }
+            button {
+                padding: 12px 24px;
+                font-size: 16px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                background-color: #007bff;
+                color: white;
+                transition: background-color 0.3s;
+            }
+            button:hover {
+                background-color: #0056b3;
+            }
+            button:active {
+                opacity: 0.8;
+            }
+            .result-container {
+                background-color: white;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                padding: 15px;
+                margin-top: 20px;
+            }
+            pre {
+                background-color: #f8f9fa;
+                padding: 15px;
+                border-radius: 3px;
+                overflow-x: auto;
+                max-height: 400px;
+                overflow-y: auto;
+                font-size: 14px;
+                line-height: 1.4;
+            }
+            .status {
+                text-align: center;
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 3px;
+            }
+            .loading {
+                background-color: #fff3cd;
+                color: #856404;
+                display: none;
+            }
+            .success {
+                background-color: #d4edda;
+                color: #155724;
+            }
+            .error {
+                background-color: #f8d7da;
+                color: #721c24;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🤖 Job Agent Bot - Test Dashboard</h1>
+        
+        <div class="button-group">
+            <button onclick="testHealth()">🏥 Test Health</button>
+            <button onclick="runScrape()">🔍 Run Scrape</button>
+            <button onclick="runProcess()">⚙️ Run Process</button>
+        </div>
+        
+        <div class="result-container">
+            <div id="loading" class="status loading">
+                ⏳ Loading... Please wait
+            </div>
+            <div id="status" class="status" style="display: none;"></div>
+            <pre id="result">Results will appear here...</pre>
+        </div>
+        
+        <script>
+            function showLoading(show = true) {
+                document.getElementById("loading").style.display = show ? "block" : "none";
+                document.getElementById("status").style.display = "none";
+            }
+            
+            function showStatus(message, type = "success") {
+                const statusDiv = document.getElementById("status");
+                statusDiv.textContent = message;
+                statusDiv.className = "status " + type;
+                statusDiv.style.display = "block";
+            }
+            
+            function showResult(data) {
+                document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+            }
+            
+            function testHealth() {
+                showLoading(true);
+                fetch("/health")
+                    .then(res => res.json())
+                    .then(data => {
+                        showLoading(false);
+                        showStatus("✅ Health check passed", "success");
+                        showResult(data);
+                    })
+                    .catch(error => {
+                        showLoading(false);
+                        showStatus("❌ Health check failed: " + error.message, "error");
+                        showResult({ error: error.toString() });
+                    });
+            }
+            
+            function runScrape() {
+                showLoading(true);
+                fetch("/scrape", { method: "POST" })
+                    .then(res => res.json())
+                    .then(data => {
+                        showLoading(false);
+                        if (data.status === "success") {
+                            showStatus(`✅ Scrape completed: ${data.added} added, ${data.skipped} skipped, ${data.errors} errors`, "success");
+                        } else {
+                            showStatus("⚠️ " + (data.message || "Scrape completed with warnings"), "error");
+                        }
+                        showResult(data);
+                    })
+                    .catch(error => {
+                        showLoading(false);
+                        showStatus("❌ Scrape failed: " + error.message, "error");
+                        showResult({ error: error.toString() });
+                    });
+            }
+            
+            function runProcess() {
+                showLoading(true);
+                fetch("/process", { method: "POST" })
+                    .then(res => res.json())
+                    .then(data => {
+                        showLoading(false);
+                        if (data.status === "success") {
+                            showStatus(`✅ Process completed: ${data.sent} sent, ${data.guided} guided, ${data.failed} failed`, "success");
+                        } else if (data.status === "rate_limited") {
+                            showStatus("⚠️ Rate limit reached: " + data.message, "error");
+                        } else {
+                            showStatus("⚠️ " + (data.message || "Process completed with warnings"), "error");
+                        }
+                        showResult(data);
+                    })
+                    .catch(error => {
+                        showLoading(false);
+                        showStatus("❌ Process failed: " + error.message, "error");
+                        showResult({ error: error.toString() });
+                    });
+            }
+        </script>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
 
 
 @app.route("/scrape", methods=["POST"])
