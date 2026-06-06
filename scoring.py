@@ -1,7 +1,7 @@
 from filters import detect_benefits
 
-
 def calculate_score(job):
+
     score = 0
 
     title = (job.get("title") or "").lower()
