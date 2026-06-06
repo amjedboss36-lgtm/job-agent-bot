@@ -1,7 +1,6 @@
 import requests
 import xml.etree.ElementTree as ET
-from bs4 import BeautifulSoup
-from filters import is_valid_job_link, is_target_job
+from filters import is_target_job, detect_benefits
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0"
@@ -11,10 +10,8 @@ HEADERS = {
 # EURES (placeholder)
 # =========================
 def eures_jobs():
-    """
-    EURES is a conceptual source for now.
-    """
     return []
+
 
 # =========================
 # Indeed RSS
@@ -41,20 +38,30 @@ def indeed_jobs():
                 title = item.findtext("title")
                 link = item.findtext("link")
 
+                if not title or not link:
+                    continue
+
+                # فلترة مبدئية
+                if not is_target_job(title):
+                    continue
+
+                benefits = detect_benefits(title)
+
                 job = {
                     "title": title,
                     "link": link,
                     "country": "Indeed",
-                    "description": title
+                    "description": title,
+                    "benefits": benefits
                 }
 
-                if is_target_job(title) and is_valid_job_link(link):
-                    jobs.append(job)
+                jobs.append(job)
 
-        except:
+        except Exception:
             continue
 
     return jobs
+
 
 # =========================
 # Healthcare / Care jobs
@@ -85,15 +92,22 @@ def healthcare_career_jobs():
     jobs = []
 
     for j in sources:
-        if is_target_job(j["description"]):
-            jobs.append(j)
+
+        if not is_target_job(j["description"]):
+            continue
+
+        j["benefits"] = detect_benefits(j["description"])
+
+        jobs.append(j)
 
     return jobs
+
 
 # =========================
 # Main collector
 # =========================
 def collect_all_jobs():
+
     jobs = []
 
     jobs.extend(indeed_jobs())
