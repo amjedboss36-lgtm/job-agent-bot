@@ -1,71 +1,56 @@
-from filters import detect_benefits
+from filters import detect_benefits, detect_requirements
+
 
 def calculate_score(job):
 
     score = 0
 
     title = (job.get("title") or "").lower()
+    desc = (job.get("description") or "").lower()
+    text = title + " " + desc
 
-    if any(x in title for x in [
-        "nurse",
-        "nursing",
-        "caregiver",
-        "healthcare assistant",
-        "care assistant"
-    ]):
-        score += 50
+    benefits = detect_benefits(text)
+    requirements = detect_requirements(text)
 
-    elif any(x in title for x in [
-        "admin",
-        "administration",
-        "office",
-        "business"
-    ]):
-        score += 30
-
-    else:
-        score += 15
-
-    benefits = detect_benefits(job.get("description", ""))
-
+    # =========================
+    # 1. VISA / SPONSORSHIP (أولوية قصوى)
+    # =========================
     if benefits["visa"]:
-        score += 20
+        score += 40
+    else:
+        score -= 20  # يقلل الوظائف بدون فيزا
 
     if benefits["relocation"]:
-        score += 10
-
-    if benefits["training"]:
-        score += 10
+        score += 15
 
     if benefits["international"]:
         score += 10
 
-    country = (job.get("country") or "").lower()
+    # =========================
+    # 2. مستوى المتطلبات
+    # =========================
+    if requirements["low_entry"]:
+        score += 30
 
-    europe_keywords = [
-        "germany",
-        "netherlands",
-        "sweden",
-        "norway",
-        "denmark",
-        "france",
-        "belgium",
-        "austria"
-    ]
+    if requirements["high_demand"]:
+        score -= 25
 
-    gulf_keywords = [
-        "saudi",
-        "uae",
-        "qatar",
-        "oman",
-        "kuwait",
-        "bahrain"
-    ]
+    # =========================
+    # 3. نوع الوظيفة
+    # =========================
+    if any(x in title for x in [
+        "nurse", "caregiver", "healthcare", "assistant"
+    ]):
+        score += 20
 
-    if any(x in country for x in europe_keywords):
-        score += 10
+    if any(x in title for x in [
+        "warehouse", "hotel", "cleaner", "worker"
+    ]):
+        score += 15
 
-    elif any(x in country for x in gulf_keywords):
-        score += 8
+    # =========================
+    # 4. حد نهائي
+    # =========================
+    score = max(0, min(score, 100))
 
-    return min(score, 100)
+    return score
