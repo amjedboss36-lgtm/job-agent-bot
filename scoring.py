@@ -1,56 +1,80 @@
-from filters import detect_benefits, detect_requirements
+from filters import detect_benefits
 
 
 def calculate_score(job):
 
     score = 0
 
-    title = (job.get("title") or "").lower()
-    desc = (job.get("description") or "").lower()
-    text = title + " " + desc
-
-    benefits = detect_benefits(text)
-    requirements = detect_requirements(text)
+    text = (job.get("title", "") + " " + job.get("description", "")).lower()
+    country = (job.get("country") or "").lower()
 
     # =========================
-    # 1. VISA / SPONSORSHIP (أولوية قصوى)
+    # 🎫 VISA PRIORITY (أهم جزء)
     # =========================
-    if benefits["visa"]:
-        score += 40
+    visa_keywords = [
+        "visa sponsorship",
+        "sponsorship",
+        "work permit",
+        "relocation",
+        "immigration support",
+        "migrate",
+        "foreign workers",
+        "international applicants"
+    ]
+
+    if any(k in text for k in visa_keywords):
+        score += 60
+    elif "remote" in text:
+        score += 25
     else:
-        score -= 20  # يقلل الوظائف بدون فيزا
-
-    if benefits["relocation"]:
-        score += 15
-
-    if benefits["international"]:
         score += 10
 
-    # =========================
-    # 2. مستوى المتطلبات
-    # =========================
-    if requirements["low_entry"]:
-        score += 30
-
-    if requirements["high_demand"]:
-        score -= 25
 
     # =========================
-    # 3. نوع الوظيفة
+    # 🧠 EASY REQUIREMENTS
     # =========================
-    if any(x in title for x in [
-        "nurse", "caregiver", "healthcare", "assistant"
-    ]):
+    easy_keywords = [
+        "no experience",
+        "entry level",
+        "training provided",
+        "no degree",
+        "junior",
+        "basic english"
+    ]
+
+    if any(k in text for k in easy_keywords):
         score += 20
 
-    if any(x in title for x in [
-        "warehouse", "hotel", "cleaner", "worker"
-    ]):
+
+    # =========================
+    # 🌍 COUNTRIES (Migration Friendly)
+    # =========================
+    good_countries = [
+        "germany", "netherlands", "sweden",
+        "norway", "denmark", "canada",
+        "australia", "uk", "ireland"
+    ]
+
+    if any(c in country for c in good_countries):
         score += 15
 
-    # =========================
-    # 4. حد نهائي
-    # =========================
-    score = max(0, min(score, 100))
 
-    return score
+    # =========================
+    # 📦 BENEFITS (من detect_benefits)
+    # =========================
+    benefits = detect_benefits(text)
+
+    if benefits["visa"]:
+        score += 15
+
+    if benefits["relocation"]:
+        score += 10
+
+    if benefits["training"]:
+        score += 5
+
+    if benefits["international"]:
+        score += 5
+
+
+    return min(score, 100)
