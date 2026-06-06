@@ -6,6 +6,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 
 def send_message(message: str):
+
     if not BOT_TOKEN or not CHAT_ID:
         print("Missing BOT_TOKEN or CHAT_ID")
         return
@@ -21,5 +22,6 @@ def send_message(message: str):
             },
             timeout=20
         )
+
     except Exception as e:
         print("Telegram Error:", e)
