@@ -1,6 +1,11 @@
 import os
 import requests
 import smtplib
+import os
+import re
+import mimetypes
+from email.mime.base import MIMEBase
+from email import encoders
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from apply_decision_engine import format_confidence_display, get_mode_emoji
@@ -41,7 +46,7 @@ def send_message(message: str):
         return False
 
 
-def send_email_application(to_email, job_title, cover_letter, company=""):
+def send_email_application(to_email, job_title, cover_letter, company="", cv_path=None):
     """
     Send job application via email.
     
@@ -57,6 +62,23 @@ def send_email_application(to_email, job_title, cover_letter, company=""):
     
     if not SMTP_EMAIL or not SMTP_PASSWORD:
         print("Missing SMTP credentials")
+        return False
+    if not to_email or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", str(to_email).strip()):
+        print("Refusing to send: recipient email is invalid")
+        return False
+
+    # Require a verified CV file for automated applications. Never send a blank
+    # application or silently claim success without the candidate's attachment.
+    cv_path = cv_path or os.getenv("CV_FILE_PATH")
+    if not cv_path or not os.path.isfile(cv_path):
+        print("Refusing to send: CV_FILE_PATH is missing or the CV file is unavailable")
+        return False
+    allowed_extensions = {".pdf", ".doc", ".docx"}
+    if os.path.splitext(cv_path)[1].lower() not in allowed_extensions:
+        print("Refusing to send: CV must be PDF, DOC, or DOCX")
+        return False
+    if os.path.getsize(cv_path) > 10 * 1024 * 1024:
+        print("Refusing to send: CV attachment exceeds 10 MB")
         return False
 
     try:
@@ -83,6 +105,15 @@ This is an automated application. Please contact for further information.
 """
         
         msg.attach(MIMEText(body, "plain"))
+
+        content_type, _ = mimetypes.guess_type(cv_path)
+        maintype, subtype = (content_type or "application/octet-stream").split("/", 1)
+        with open(cv_path, "rb") as cv_file:
+            attachment = MIMEBase(maintype, subtype)
+            attachment.set_payload(cv_file.read())
+        encoders.encode_base64(attachment)
+        attachment.add_header("Content-Disposition", "attachment", filename=os.path.basename(cv_path))
+        msg.attach(attachment)
         
         # Send via SMTP
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
@@ -98,7 +129,7 @@ This is an automated application. Please contact for further information.
         return False
 
 
-def format_job_notification(job_data, decision_info):
+def format_job_notification(job_data, decision_info, success=None):
     """
     Format comprehensive job notification for Telegram.
     
@@ -131,7 +162,9 @@ def format_job_notification(job_data, decision_info):
     # 🟢 AUTO_APPLY MODE
     # ==================
     if mode == ApplicationMode.AUTO_APPLY:
-        message = f"""🚀 *AUTO APPLICATION SUCCESS*
+        status_line = ("✅ *Status:* Application email sent successfully" if success is True
+                       else "❌ *Status:* Application was not confirmed as sent")
+        message = f"""🚀 *AUTOMATIC APPLICATION*
 
 *Position:* {title}
 *Country:* 🌍 {country}
@@ -144,7 +177,7 @@ def format_job_notification(job_data, decision_info):
 {flags_display}
 
 📧 *Email:* {apply_email}
-✅ *Status:* Application queued for sending
+{status_line}
 
 🔗 Job Link:
 {link}
@@ -187,6 +220,7 @@ def format_job_notification(job_data, decision_info):
     # 🔴 MANUAL_ALERT MODE
     # ==================
     else:
+        email_line = f"\n📧 *Possible application email (verify first):* {apply_email}\n" if apply_email else ""
         message = f"""🔴 *MANUAL OPPORTUNITY*
 
 *Position:* {title}
@@ -196,7 +230,7 @@ def format_job_notification(job_data, decision_info):
 
 *Priority Flags:*
 {flags_display}
-
+{email_line}
 📌 *How to Apply:*
 • Visit the job link below
 • Search for this position manually
@@ -226,7 +260,7 @@ def notify_job_sent(job_data, decision_info, success=True):
         bool: Success status
     """
     
-    message = format_job_notification(job_data, decision_info)
+    message = format_job_notification(job_data, decision_info, success=success)
     
     if not success:
         message = f"⚠️ *APPLICATION FAILED*\n\n{message}\n\n❌ Error during processing"

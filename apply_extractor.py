@@ -124,18 +124,23 @@ def is_trusted_domain(url):
 
     try:
         parsed = urlparse(url)
-        domain = parsed.netloc.lower().replace('www.', '')
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            return False
+        domain = parsed.hostname.lower().rstrip(".")
+        if domain.startswith("www."):
+            domain = domain[4:]
 
-        # Check blocklist first
+        # Match complete hostnames or true subdomains only; substring checks
+        # would incorrectly trust domains such as indeed.com.attacker.example.
         for blocked in BLOCKED_DOMAINS:
-            if blocked in domain:
+            blocked_host = blocked.lower()
+            if domain == blocked_host or domain.endswith("." + blocked_host):
                 return False
 
-        # Check whitelist
         for trusted in TRUSTED_APPLY_DOMAINS:
-            if trusted in domain:
+            trusted_host = trusted.lower()
+            if domain == trusted_host or domain.endswith("." + trusted_host):
                 return True
-
         return False
     except:
         return False

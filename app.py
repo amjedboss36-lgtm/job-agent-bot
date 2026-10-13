@@ -1,4 +1,5 @@
 import os
+import hmac
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template_string
 from scraper import scrape_jobs
@@ -8,7 +9,7 @@ from cover_letter import get_or_generate_cover_letter
 from queue_manager import (
     init_db, add_job, get_pending_jobs, 
     update_job_status, mark_sent, can_send_today,
-    ApplicationMode, JobStatus
+    ApplicationMode, JobStatus, get_recent_jobs
 )
 from telegram_bot import notify_job_sent, notify_error, notify_summary, send_email_application
 
@@ -83,6 +84,30 @@ def safe_compare_score(score, threshold=50):
     except (TypeError, ValueError) as e:
         print(f"⚠️ Error comparing score: {e}")
         return False
+
+
+
+
+
+@app.before_request
+def protect_mutating_and_private_endpoints():
+    """Require an owner-configured API key for actions and private queue data."""
+    protected = {"scrape_jobs_route", "process_jobs_route", "stats", "applications"}
+    if request.endpoint not in protected:
+        return None
+    expected = os.getenv("ADMIN_API_KEY", "").strip()
+    if not expected:
+        return jsonify({
+            "status": "configuration_error",
+            "message": "Set ADMIN_API_KEY in the deployment environment before using protected endpoints."
+        }), 503
+    supplied = request.headers.get("X-Admin-Key", "")
+    auth = request.headers.get("Authorization", "")
+    if not supplied and auth.lower().startswith("bearer "):
+        supplied = auth[7:].strip()
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        return jsonify({"status": "unauthorized", "message": "Valid admin API key required."}), 401
+    return None
 
 
 @app.route("/", methods=["GET"])
@@ -174,10 +199,15 @@ def test_dashboard():
     <body>
         <h1>🤖 Job Agent Bot - Test Dashboard</h1>
         
+        <div style="margin: 20px 0;">
+            <label for="adminKey">Admin API key (stored only in this page):</label>
+            <input id="adminKey" type="password" autocomplete="off" placeholder="Enter ADMIN_API_KEY" style="width:100%;padding:10px;margin-top:6px;">
+        </div>
         <div class="button-group">
             <button onclick="testHealth()">🏥 Test Health</button>
             <button onclick="runScrape()">🔍 Run Scrape</button>
             <button onclick="runProcess()">⚙️ Run Process</button>
+            <button onclick="viewApplications()">📋 View Applications</button>
         </div>
         
         <div class="result-container">
@@ -189,6 +219,10 @@ def test_dashboard():
         </div>
         
         <script>
+            function adminHeaders() {
+                return { "X-Admin-Key": document.getElementById("adminKey").value };
+            }
+
             function showLoading(show = true) {
                 document.getElementById("loading").style.display = show ? "block" : "none";
                 document.getElementById("status").style.display = "none";
@@ -223,7 +257,7 @@ def test_dashboard():
             
             function runScrape() {
                 showLoading(true);
-                fetch("/scrape", { method: "POST" })
+                fetch("/scrape", { method: "POST", headers: adminHeaders() })
                     .then(res => res.json())
                     .then(data => {
                         showLoading(false);
@@ -241,9 +275,29 @@ def test_dashboard():
                     });
             }
             
+            function viewApplications() {
+                showLoading(true);
+                fetch("/applications?limit=100", { headers: adminHeaders() })
+                    .then(async res => {
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.message || "Request failed");
+                        return data;
+                    })
+                    .then(data => {
+                        showLoading(false);
+                        showStatus("Application history loaded", "success");
+                        showResult(data);
+                    })
+                    .catch(error => {
+                        showLoading(false);
+                        showStatus("Could not load history: " + error.message, "error");
+                        showResult({ error: error.toString() });
+                    });
+            }
+
             function runProcess() {
                 showLoading(true);
-                fetch("/process", { method: "POST" })
+                fetch("/process", { method: "POST", headers: adminHeaders() })
                     .then(res => res.json())
                     .then(data => {
                         showLoading(false);
@@ -297,7 +351,8 @@ def scrape_jobs_route():
                 job["priority_flags"] = flags
                 
                 # Add to queue if score is good enough
-                if safe_compare_score(score, threshold=50):
+                min_score = int(os.getenv("MIN_JOB_SCORE", "30"))
+                if safe_compare_score(score, threshold=min_score):
                     success = add_job(job)
                     if success:
                         added_count += 1
@@ -352,8 +407,8 @@ def process_jobs_route():
         skipped_count = 0
         user_profile = {
             "name": os.getenv("USER_NAME", "Candidate"),
-            "skills": os.getenv("USER_SKILLS", "healthcare, nursing"),
-            "experience": os.getenv("USER_EXPERIENCE", "Professional with international experience")
+            "skills": os.getenv("USER_SKILLS", "Not verified; use only skills provided in the candidate profile."),
+            "experience": os.getenv("USER_EXPERIENCE", "Not provided; do not claim unverified work experience.")
         }
         
         # Process each job
@@ -400,10 +455,26 @@ def process_jobs_route():
                 # Decide application mode
                 decision = decide_application_mode(job, job["score"])
                 
+                # User policy is explicit approval for every application.
+                # This processing endpoint only queues review items; it must never send.
+                if decision["mode"] == ApplicationMode.AUTO_APPLY:
+                    decision = {
+                        **decision,
+                        "mode": ApplicationMode.MANUAL_ALERT,
+                        "reasoning": (
+                            "Email detected, but the user's policy requires explicit approval for every application. "
+                            "This endpoint only queues review items; no email is sent here."
+                        ),
+                        "apply_url": job.get("link")
+                    }
+                    update_job_status(job_id, JobStatus.QUEUED.value)
+                    print(f"🛡️ Approval required before sending: {job['title']}")
+
                 # Handle AUTO_APPLY
                 if decision["mode"] == ApplicationMode.AUTO_APPLY:
                     print(f"🚀 AUTO_APPLY: {job['title']}")
                     
+                    email_success = False
                     try:
                         # Generate cover letter
                         cover_letter = get_or_generate_cover_letter(job_id, job, user_profile)
@@ -412,7 +483,8 @@ def process_jobs_route():
                         email_success = send_email_application(
                             to_email=decision["apply_email"],
                             job_title=job["title"],
-                            cover_letter=cover_letter
+                            cover_letter=cover_letter,
+                            cv_path=os.getenv("CV_FILE_PATH")
                         )
                         
                         if email_success:
@@ -443,8 +515,14 @@ def process_jobs_route():
                     update_job_status(job_id, JobStatus.QUEUED.value)
                     skipped_count += 1
                 
-                # Send Telegram notification
-                notify_job_sent(job, decision, success=True)
+                # For AUTO_APPLY, report success only if SMTP actually accepted the email.
+                # For guided/manual alerts, True means the notification itself is informational,
+                # not that an application was submitted.
+                notification_success = (
+                    decision["mode"] != ApplicationMode.AUTO_APPLY
+                    or bool(email_success)
+                )
+                notify_job_sent(job, decision, success=notification_success)
                 
             except Exception as e:
                 error_msg = f"Job processing error: {str(e)}"
@@ -476,6 +554,20 @@ def process_jobs_route():
 def health():
     """Health check endpoint"""
     return jsonify({"status": "healthy", "service": "job-agent-bot"}), 200
+
+
+@app.route("/applications", methods=["GET"])
+def applications():
+    """Return recent job/application statuses; protected by ADMIN_API_KEY."""
+    try:
+        limit = request.args.get("limit", default=100, type=int)
+        return jsonify({
+            "items": get_recent_jobs(limit=limit),
+            "note": "sent means the SMTP server accepted the email; it does not prove the employer received or reviewed it."
+        }), 200
+    except Exception:
+        app.logger.exception("Failed to load application history")
+        return jsonify({"status": "error", "message": "Could not load application history."}), 500
 
 
 @app.route("/stats", methods=["GET"])
