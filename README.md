@@ -14,6 +14,7 @@ This service discovers job postings, scores relevance, prepares cover letters, a
 - `SMTP_EMAIL`, `SMTP_PASSWORD`, optional `SMTP_SERVER`, `SMTP_PORT`: outgoing mail.
 - `OPENAI_API_KEY`, optional `OPENAI_MODEL`: cover-letter generation.
 - `AUTO_APPLY_ENABLED`: defaults to `false`.
+- `MIN_JOB_SCORE`: relevance threshold for queuing a job (default `30`); lower values broaden results and increase manual review volume.
 - `CV_FILE_PATH`: path to a candidate-owned PDF/DOC/DOCX file; required for automated email sending (maximum 10 MB). Do not store the CV in the Git repository.
 - `USER_NAME`, `USER_SKILLS`, `USER_EXPERIENCE`: temporary profile values; replace with verified candidate details.
 - `DB_FILE`: optional persistent SQLite path (must be on persistent storage if deployed).
