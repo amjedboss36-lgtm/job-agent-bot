@@ -455,17 +455,15 @@ def process_jobs_route():
                 # Decide application mode
                 decision = decide_application_mode(job, job["score"])
                 
-                # Safety gate: sending applications is disabled unless the owner
-                # explicitly enables it after verifying profile, CV, recipient, and consent.
-                if (decision["mode"] == ApplicationMode.AUTO_APPLY
-                        and os.getenv("AUTO_APPLY_ENABLED", "false").strip().lower()
-                        not in ("1", "true", "yes", "on")):
+                # User policy is explicit approval for every application.
+                # This processing endpoint only queues review items; it must never send.
+                if decision["mode"] == ApplicationMode.AUTO_APPLY:
                     decision = {
                         **decision,
                         "mode": ApplicationMode.MANUAL_ALERT,
                         "reasoning": (
-                            "Email detected, but automatic sending is disabled by default. "
-                            "Review the recipient and approve the application manually."
+                            "Email detected, but the user's policy requires explicit approval for every application. "
+                            "This endpoint only queues review items; no email is sent here."
                         ),
                         "apply_url": job.get("link")
                     }
