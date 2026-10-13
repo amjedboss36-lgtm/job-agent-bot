@@ -146,3 +146,16 @@ def test_scraper_integrates_public_api_jobs_and_deduplicates(monkeypatch):
     jobs = scraper.scrape_jobs()
     assert len(jobs) == 1
     assert jobs[0]["title"] == "Nurse"
+
+
+
+def test_general_job_categories_receive_relevance_points():
+    from scoring import calculate_score
+
+    result = calculate_score({
+        "title": "Customer Service Representative",
+        "description": "Customer service job with training provided",
+        "country": "Canada",
+    })
+    assert result["score"] >= 30
+    assert "GENERAL_ROLE" in result["priority_flags"] or "ADMIN_ROLE" in result["priority_flags"]
