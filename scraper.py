@@ -1,7 +1,9 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
+
+from sources import collect_all_jobs
 
 # Job scraping sources
 SOURCES = {
@@ -19,6 +21,14 @@ def scrape_jobs():
     """
     
     all_jobs = []
+
+    # Prefer public job-board APIs where available; keep failures isolated.
+    try:
+        api_jobs = collect_all_jobs()
+        all_jobs.extend(api_jobs[:100])
+        print(f"✅ Public job APIs: {len(api_jobs[:100])} jobs")
+    except Exception as e:
+        print(f"❌ Public job APIs failed: {e}")
     
     try:
         # Try to scrape from Indeed (most reliable)
@@ -44,7 +54,20 @@ def scrape_jobs():
     except Exception as e:
         print(f"❌ Greenhouse scrape failed: {e}")
     
-    return all_jobs
+    # Deduplicate by canonical URL and discard malformed/non-web links.
+    unique = {}
+    for job in all_jobs:
+        link = (job.get("link") or "").strip()
+        title = (job.get("title") or "").strip()
+        parsed = urlparse(link)
+        if not title or parsed.scheme not in ("http", "https") or not parsed.netloc:
+            continue
+        canonical = link.split("#", 1)[0].rstrip("/")
+        if canonical not in unique:
+            job["title"] = title
+            job["link"] = canonical
+            unique[canonical] = job
+    return list(unique.values())
 
 
 def scrape_indeed():
