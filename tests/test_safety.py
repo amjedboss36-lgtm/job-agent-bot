@@ -63,3 +63,59 @@ def test_admin_endpoints_are_closed_without_configured_key(tmp_path, monkeypatch
     assert client.post("/scrape", headers={"X-Admin-Key": "wrong"}).status_code == 401
     assert client.get("/stats", headers={"X-Admin-Key": "unit-test-secret"}).status_code == 200
     assert client.get("/applications", headers={"X-Admin-Key": "unit-test-secret"}).status_code == 200
+
+
+
+def test_automatic_email_requires_cv_attachment(tmp_path, monkeypatch):
+    import telegram_bot
+
+    monkeypatch.setattr(telegram_bot, "SMTP_EMAIL", "sender@example.org")
+    monkeypatch.setattr(telegram_bot, "SMTP_PASSWORD", "test-only")
+    monkeypatch.delenv("CV_FILE_PATH", raising=False)
+    assert telegram_bot.send_email_application(
+        "hr@example.org", "Nurse", "Cover letter"
+    ) is False
+
+
+def test_automatic_email_attaches_configured_cv(tmp_path, monkeypatch):
+    import email
+    import telegram_bot
+
+    cv = tmp_path / "candidate.pdf"
+    cv.write_bytes(b"%PDF-1.4 test CV")
+    monkeypatch.setattr(telegram_bot, "SMTP_EMAIL", "sender@example.org")
+    monkeypatch.setattr(telegram_bot, "SMTP_PASSWORD", "test-only")
+    monkeypatch.setattr(telegram_bot, "SMTP_SERVER", "smtp.example.org")
+    monkeypatch.setattr(telegram_bot, "SMTP_PORT", 587)
+    monkeypatch.setenv("CV_FILE_PATH", str(cv))
+
+    captured = {}
+
+    class FakeSMTP:
+        def __init__(self, server, port):
+            captured["server"] = server
+            captured["port"] = port
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def starttls(self):
+            pass
+
+        def login(self, sender, password):
+            captured["sender"] = sender
+
+        def send_message(self, message):
+            captured["message"] = message
+
+    monkeypatch.setattr(telegram_bot.smtplib, "SMTP", FakeSMTP)
+    assert telegram_bot.send_email_application(
+        "hr@example.org", "Nurse", "Cover letter"
+    ) is True
+    message = captured["message"]
+    attachments = [part for part in message.walk() if part.get_content_disposition() == "attachment"]
+    assert len(attachments) == 1
+    assert attachments[0].get_filename() == "candidate.pdf"
