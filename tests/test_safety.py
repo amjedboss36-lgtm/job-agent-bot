@@ -159,3 +159,46 @@ def test_general_job_categories_receive_relevance_points():
     })
     assert result["score"] >= 30
     assert "GENERAL_ROLE" in result["priority_flags"] or "ADMIN_ROLE" in result["priority_flags"]
+
+
+
+def test_process_never_sends_without_per_job_approval(tmp_path, monkeypatch):
+    import app as application
+    from queue_manager import add_job, init_db, ApplicationMode
+
+    monkeypatch.setattr(queue_manager, "DB_FILE", str(tmp_path / "approval_test.db"))
+    init_db()
+    assert add_job({
+        "id": "approval-test-1",
+        "title": "Registered Nurse",
+        "link": "https://jobs.example.org/1",
+        "country": "Canada",
+        "description": "Apply via hr@example.org",
+        "source": "Test",
+        "score": 80,
+    })
+    monkeypatch.setenv("ADMIN_API_KEY", "unit-test-secret")
+    monkeypatch.setenv("AUTO_APPLY_ENABLED", "true")
+    monkeypatch.setattr(application, "decide_application_mode", lambda job, score: {
+        "mode": ApplicationMode.AUTO_APPLY,
+        "apply_email": "hr@example.org",
+        "apply_url": None,
+        "confidence_score": 0.95,
+        "reasoning": "test",
+    })
+    sent = {"called": False}
+
+    def fake_send(*args, **kwargs):
+        sent["called"] = True
+        return True
+
+    monkeypatch.setattr(application, "send_email_application", fake_send)
+    monkeypatch.setattr(application, "notify_job_sent", lambda *args, **kwargs: True)
+    monkeypatch.setattr(application, "notify_summary", lambda *args, **kwargs: True)
+
+    client = application.app.test_client()
+    response = client.post("/process", headers={"X-Admin-Key": "unit-test-secret"})
+    assert response.status_code == 200
+    assert sent["called"] is False
+    item = queue_manager.get_recent_jobs(limit=10)[0]
+    assert item["status"] == "queued"
