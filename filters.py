@@ -1,4 +1,4 @@
-import requests
+from urllib.parse import urlparse
 
 BAD_PATTERNS = [
     "eures.europa.eu"
@@ -8,12 +8,16 @@ def is_valid_job_link(url):
     if not url:
         return False
 
-    url = url.lower()
-
-    if "http" not in url:
+    parsed = urlparse(str(url).strip())
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
         return False
 
-    if "eures.europa.eu" in url:
+    host = parsed.hostname.lower().rstrip(".")
+    if host == "eures.europa.eu" or host.endswith(".eures.europa.eu"):
+        return False
+
+    # Reject lookalike / malformed hosts and embedded credentials.
+    if parsed.username or parsed.password or "." not in host:
         return False
 
     return True
@@ -24,11 +28,13 @@ def is_target_job(text):
 
     keywords = [
         "nurse", "nursing", "caregiver",
-        "care assistant", "healthcare",
-        "hospital", "medical",
-        "warehouse", "hotel",
-        "admin", "office", "worker",
-        "assistant"
+        "care assistant", "healthcare", "hospital", "medical",
+        "warehouse", "hotel", "hospitality", "restaurant", "chef",
+        "waiter", "admin", "office", "secretary", "data entry",
+        "receptionist", "customer service", "logistics", "inventory",
+        "operator", "technician", "cleaner", "driver", "sales",
+        "accounting", "finance", "human resources", "hr", "marketing",
+        "IT support", "software", "remote", "entry level", "trainee"
     ]
 
     return any(k in text for k in keywords)
