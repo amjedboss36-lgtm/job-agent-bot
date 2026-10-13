@@ -422,6 +422,7 @@ def process_jobs_route():
                 if decision["mode"] == ApplicationMode.AUTO_APPLY:
                     print(f"🚀 AUTO_APPLY: {job['title']}")
                     
+                    email_success = False
                     try:
                         # Generate cover letter
                         cover_letter = get_or_generate_cover_letter(job_id, job, user_profile)
@@ -466,7 +467,7 @@ def process_jobs_route():
                 # not that an application was submitted.
                 notification_success = (
                     decision["mode"] != ApplicationMode.AUTO_APPLY
-                    or email_success if "email_success" in locals() else True
+                    or bool(email_success)
                 )
                 notify_job_sent(job, decision, success=notification_success)
                 
