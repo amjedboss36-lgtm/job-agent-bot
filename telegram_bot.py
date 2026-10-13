@@ -170,7 +170,7 @@ def format_job_notification(job_data, decision_info, success=None):
 
 *Priority Flags:*
 {flags_display}
-{email_line}
+
 📌 *How to Apply:*
 1️⃣ Open the link below
 2️⃣ Click on "Apply Now" button
@@ -199,7 +199,7 @@ def format_job_notification(job_data, decision_info, success=None):
 
 *Priority Flags:*
 {flags_display}
-
+{email_line}
 📌 *How to Apply:*
 • Visit the job link below
 • Search for this position manually
