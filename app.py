@@ -407,8 +407,8 @@ def process_jobs_route():
         skipped_count = 0
         user_profile = {
             "name": os.getenv("USER_NAME", "Candidate"),
-            "skills": os.getenv("USER_SKILLS", "healthcare, nursing"),
-            "experience": os.getenv("USER_EXPERIENCE", "Professional with international experience")
+            "skills": os.getenv("USER_SKILLS", "Not verified; use only skills provided in the candidate profile."),
+            "experience": os.getenv("USER_EXPERIENCE", "Not provided; do not claim unverified work experience.")
         }
         
         # Process each job
