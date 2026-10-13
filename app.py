@@ -351,7 +351,8 @@ def scrape_jobs_route():
                 job["priority_flags"] = flags
                 
                 # Add to queue if score is good enough
-                if safe_compare_score(score, threshold=50):
+                min_score = int(os.getenv("MIN_JOB_SCORE", "30"))
+                if safe_compare_score(score, threshold=min_score):
                     success = add_job(job)
                     if success:
                         added_count += 1
