@@ -28,6 +28,9 @@ def send_message(message: str):
         print("Missing BOT_TOKEN or CHAT_ID")
         return False
 
+    # Distinguish international alerts from the Yemen nursing project in the shared chat.
+    if not message.startswith("[وظائف عالمية]"):
+        message = "[وظائف عالمية]\\n\\n" + message
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     try:
