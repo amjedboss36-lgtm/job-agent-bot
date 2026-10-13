@@ -468,7 +468,6 @@ def process_jobs_route():
                         "apply_url": job.get("link")
                     }
                     update_job_status(job_id, JobStatus.QUEUED.value)
-                    skipped_count += 1
                     print(f"🛡️ Approval required before sending: {job['title']}")
 
                 # Handle AUTO_APPLY
