@@ -400,6 +400,24 @@ def process_jobs_route():
                 # Decide application mode
                 decision = decide_application_mode(job, job["score"])
                 
+                # Safety gate: sending applications is disabled unless the owner
+                # explicitly enables it after verifying profile, CV, recipient, and consent.
+                if (decision["mode"] == ApplicationMode.AUTO_APPLY
+                        and os.getenv("AUTO_APPLY_ENABLED", "false").strip().lower()
+                        not in ("1", "true", "yes", "on")):
+                    decision = {
+                        **decision,
+                        "mode": ApplicationMode.MANUAL_ALERT,
+                        "reasoning": (
+                            "Email detected, but automatic sending is disabled by default. "
+                            "Review the recipient and approve the application manually."
+                        ),
+                        "apply_url": job.get("link")
+                    }
+                    update_job_status(job_id, JobStatus.QUEUED.value)
+                    skipped_count += 1
+                    print(f"🛡️ Approval required before sending: {job['title']}")
+
                 # Handle AUTO_APPLY
                 if decision["mode"] == ApplicationMode.AUTO_APPLY:
                     print(f"🚀 AUTO_APPLY: {job['title']}")
@@ -443,8 +461,14 @@ def process_jobs_route():
                     update_job_status(job_id, JobStatus.QUEUED.value)
                     skipped_count += 1
                 
-                # Send Telegram notification
-                notify_job_sent(job, decision, success=True)
+                # For AUTO_APPLY, report success only if SMTP actually accepted the email.
+                # For guided/manual alerts, True means the notification itself is informational,
+                # not that an application was submitted.
+                notification_success = (
+                    decision["mode"] != ApplicationMode.AUTO_APPLY
+                    or email_success if "email_success" in locals() else True
+                )
+                notify_job_sent(job, decision, success=notification_success)
                 
             except Exception as e:
                 error_msg = f"Job processing error: {str(e)}"
