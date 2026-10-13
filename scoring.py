@@ -72,7 +72,16 @@ def calculate_score(job):
 
     admin_keywords = [
         "admin", "office", "assistant", "secretary",
-        "data entry", "receptionist"
+        "data entry", "receptionist", "customer service"
+    ]
+
+    operations_keywords = [
+        "warehouse", "logistics", "inventory", "supply chain",
+        "operator", "technician", "maintenance", "driver",
+        "cleaner", "sales", "accounting", "finance",
+        "human resources", "hr assistant", "marketing",
+        "it support", "help desk", "software", "trainee",
+        "hotel", "restaurant", "chef", "waiter", "hospitality"
     ]
 
     if any(k in text for k in healthcare_keywords):
@@ -84,8 +93,12 @@ def calculate_score(job):
         priority_flags.append("HOSPITALITY_OPPORTUNITY")
 
     elif any(k in text for k in admin_keywords):
-        score += 5
+        score += 10
         priority_flags.append("ADMIN_ROLE")
+
+    elif any(k in text for k in operations_keywords):
+        score += 10
+        priority_flags.append("GENERAL_ROLE")
 
 
     # =========================
