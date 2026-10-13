@@ -274,3 +274,22 @@ def cleanup_old_jobs(days=30):
 
     conn.commit()
     conn.close()
+
+
+
+def get_recent_jobs(limit=100):
+    """Return a bounded, privacy-conscious application tracking view."""
+    limit = max(1, min(int(limit), 500))
+    conn = sqlite3.connect(DB_FILE, timeout=15)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("""
+            SELECT id, title, link, country, source, score, apply_mode,
+                   status, created_at, sent_at, failed_reason, apply_email, apply_url
+            FROM jobs
+            ORDER BY created_at DESC
+            LIMIT ?
+        """, (limit,)).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
