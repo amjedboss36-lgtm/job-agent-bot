@@ -31,6 +31,9 @@ def send_message(message: str):
     # Distinguish international alerts from the Yemen nursing project in the shared chat.
     if not message.startswith("[وظائف عالمية]"):
         message = "[وظائف عالمية]\\n\\n" + message
+    # The same Telegram chat is shared with the Yemen nursing project.
+    if not message.startswith("[وظائف عالمية]"):
+        message = "[وظائف عالمية]\\n\\n" + message
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
     try:
