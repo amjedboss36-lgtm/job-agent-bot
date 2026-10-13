@@ -485,7 +485,8 @@ def process_jobs_route():
                         email_success = send_email_application(
                             to_email=decision["apply_email"],
                             job_title=job["title"],
-                            cover_letter=cover_letter
+                            cover_letter=cover_letter,
+                            cv_path=os.getenv("CV_FILE_PATH")
                         )
                         
                         if email_success:
