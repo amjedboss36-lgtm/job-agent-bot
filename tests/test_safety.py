@@ -119,3 +119,30 @@ def test_automatic_email_attaches_configured_cv(tmp_path, monkeypatch):
     attachments = [part for part in message.walk() if part.get_content_disposition() == "attachment"]
     assert len(attachments) == 1
     assert attachments[0].get_filename() == "candidate.pdf"
+
+
+
+def test_job_link_validation_rejects_lookalikes_and_accepts_https():
+    from filters import is_valid_job_link
+
+    assert is_valid_job_link("https://jobs.example.com/vacancy/1")
+    assert not is_valid_job_link("javascript:alert(1)")
+    assert not is_valid_job_link("https://eures.europa.eu.evil.example/jobs")
+    assert not is_valid_job_link("https://user:pass@jobs.example.com/apply")
+
+
+def test_scraper_integrates_public_api_jobs_and_deduplicates(monkeypatch):
+    import scraper
+
+    monkeypatch.setattr(scraper, "collect_all_jobs", lambda: [
+        {"title": "Nurse", "link": "https://example.org/job/1", "country": "Yemen", "description": "nursing", "source": "API"},
+        {"title": "Duplicate", "link": "https://example.org/job/1", "country": "Yemen", "description": "nursing", "source": "Other"},
+        {"title": "Bad URL", "link": "javascript:bad()", "country": "Unknown", "description": "", "source": "API"},
+    ])
+    monkeypatch.setattr(scraper, "scrape_indeed", lambda: [])
+    monkeypatch.setattr(scraper, "scrape_linkedin", lambda: [])
+    monkeypatch.setattr(scraper, "scrape_greenhouse", lambda: [])
+
+    jobs = scraper.scrape_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]["title"] == "Nurse"
