@@ -98,7 +98,7 @@ This is an automated application. Please contact for further information.
         return False
 
 
-def format_job_notification(job_data, decision_info):
+def format_job_notification(job_data, decision_info, success=None):
     """
     Format comprehensive job notification for Telegram.
     
@@ -131,7 +131,9 @@ def format_job_notification(job_data, decision_info):
     # 🟢 AUTO_APPLY MODE
     # ==================
     if mode == ApplicationMode.AUTO_APPLY:
-        message = f"""🚀 *AUTO APPLICATION SUCCESS*
+        status_line = ("✅ *Status:* Application email sent successfully" if success is True
+                       else "❌ *Status:* Application was not confirmed as sent")
+        message = f"""🚀 *AUTOMATIC APPLICATION*
 
 *Position:* {title}
 *Country:* 🌍 {country}
@@ -144,7 +146,7 @@ def format_job_notification(job_data, decision_info):
 {flags_display}
 
 📧 *Email:* {apply_email}
-✅ *Status:* Application queued for sending
+{status_line}
 
 🔗 Job Link:
 {link}
@@ -168,7 +170,7 @@ def format_job_notification(job_data, decision_info):
 
 *Priority Flags:*
 {flags_display}
-
+{email_line}
 📌 *How to Apply:*
 1️⃣ Open the link below
 2️⃣ Click on "Apply Now" button
@@ -187,6 +189,7 @@ def format_job_notification(job_data, decision_info):
     # 🔴 MANUAL_ALERT MODE
     # ==================
     else:
+        email_line = f"\n📧 *Possible application email (verify first):* {apply_email}\n" if apply_email else ""
         message = f"""🔴 *MANUAL OPPORTUNITY*
 
 *Position:* {title}
@@ -226,7 +229,7 @@ def notify_job_sent(job_data, decision_info, success=True):
         bool: Success status
     """
     
-    message = format_job_notification(job_data, decision_info)
+    message = format_job_notification(job_data, decision_info, success=success)
     
     if not success:
         message = f"⚠️ *APPLICATION FAILED*\n\n{message}\n\n❌ Error during processing"
