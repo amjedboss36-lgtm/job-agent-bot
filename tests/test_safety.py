@@ -47,3 +47,19 @@ def test_add_job_rejects_missing_title_or_non_http_link(tmp_path, monkeypatch):
 
     assert not queue_manager.add_job({"title": "", "link": "https://example.org"})
     assert not queue_manager.add_job({"title": "Nurse", "link": "javascript:alert(1)"})
+
+
+
+def test_admin_endpoints_are_closed_without_configured_key(tmp_path, monkeypatch):
+    import app as application
+    monkeypatch.setattr(queue_manager, "DB_FILE", str(tmp_path / "api_test.db"))
+    queue_manager.init_db()
+    client = application.app.test_client()
+
+    monkeypatch.delenv("ADMIN_API_KEY", raising=False)
+    assert client.post("/scrape").status_code == 503
+
+    monkeypatch.setenv("ADMIN_API_KEY", "unit-test-secret")
+    assert client.post("/scrape", headers={"X-Admin-Key": "wrong"}).status_code == 401
+    assert client.get("/stats", headers={"X-Admin-Key": "unit-test-secret"}).status_code == 200
+    assert client.get("/applications", headers={"X-Admin-Key": "unit-test-secret"}).status_code == 200
