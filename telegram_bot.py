@@ -63,7 +63,7 @@ def send_email_application(to_email, job_title, cover_letter, company="", cv_pat
     if not SMTP_EMAIL or not SMTP_PASSWORD:
         print("Missing SMTP credentials")
         return False
-    if not to_email or not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+", str(to_email).strip()):
+    if not to_email or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", str(to_email).strip()):
         print("Refusing to send: recipient email is invalid")
         return False
 
