@@ -1,4 +1,5 @@
 import os
+import hmac
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template_string
 from scraper import scrape_jobs
@@ -8,7 +9,7 @@ from cover_letter import get_or_generate_cover_letter
 from queue_manager import (
     init_db, add_job, get_pending_jobs, 
     update_job_status, mark_sent, can_send_today,
-    ApplicationMode, JobStatus
+    ApplicationMode, JobStatus, get_recent_jobs
 )
 from telegram_bot import notify_job_sent, notify_error, notify_summary, send_email_application
 
@@ -83,6 +84,30 @@ def safe_compare_score(score, threshold=50):
     except (TypeError, ValueError) as e:
         print(f"⚠️ Error comparing score: {e}")
         return False
+
+
+
+
+
+@app.before_request
+def protect_mutating_and_private_endpoints():
+    """Require an owner-configured API key for actions and private queue data."""
+    protected = {"scrape_jobs_route", "process_jobs_route", "stats", "applications"}
+    if request.endpoint not in protected:
+        return None
+    expected = os.getenv("ADMIN_API_KEY", "").strip()
+    if not expected:
+        return jsonify({
+            "status": "configuration_error",
+            "message": "Set ADMIN_API_KEY in the deployment environment before using protected endpoints."
+        }), 503
+    supplied = request.headers.get("X-Admin-Key", "")
+    auth = request.headers.get("Authorization", "")
+    if not supplied and auth.lower().startswith("bearer "):
+        supplied = auth[7:].strip()
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        return jsonify({"status": "unauthorized", "message": "Valid admin API key required."}), 401
+    return None
 
 
 @app.route("/", methods=["GET"])
@@ -174,10 +199,15 @@ def test_dashboard():
     <body>
         <h1>🤖 Job Agent Bot - Test Dashboard</h1>
         
+        <div style="margin: 20px 0;">
+            <label for="adminKey">Admin API key (stored only in this page):</label>
+            <input id="adminKey" type="password" autocomplete="off" placeholder="Enter ADMIN_API_KEY" style="width:100%;padding:10px;margin-top:6px;">
+        </div>
         <div class="button-group">
             <button onclick="testHealth()">🏥 Test Health</button>
             <button onclick="runScrape()">🔍 Run Scrape</button>
             <button onclick="runProcess()">⚙️ Run Process</button>
+            <button onclick="viewApplications()">📋 View Applications</button>
         </div>
         
         <div class="result-container">
@@ -189,6 +219,10 @@ def test_dashboard():
         </div>
         
         <script>
+            function adminHeaders() {
+                return { "X-Admin-Key": document.getElementById("adminKey").value };
+            }
+
             function showLoading(show = true) {
                 document.getElementById("loading").style.display = show ? "block" : "none";
                 document.getElementById("status").style.display = "none";
@@ -223,7 +257,7 @@ def test_dashboard():
             
             function runScrape() {
                 showLoading(true);
-                fetch("/scrape", { method: "POST" })
+                fetch("/scrape", { method: "POST", headers: adminHeaders() })
                     .then(res => res.json())
                     .then(data => {
                         showLoading(false);
@@ -241,9 +275,29 @@ def test_dashboard():
                     });
             }
             
+            function viewApplications() {
+                showLoading(true);
+                fetch("/applications?limit=100", { headers: adminHeaders() })
+                    .then(async res => {
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.message || "Request failed");
+                        return data;
+                    })
+                    .then(data => {
+                        showLoading(false);
+                        showStatus("Application history loaded", "success");
+                        showResult(data);
+                    })
+                    .catch(error => {
+                        showLoading(false);
+                        showStatus("Could not load history: " + error.message, "error");
+                        showResult({ error: error.toString() });
+                    });
+            }
+
             function runProcess() {
                 showLoading(true);
-                fetch("/process", { method: "POST" })
+                fetch("/process", { method: "POST", headers: adminHeaders() })
                     .then(res => res.json())
                     .then(data => {
                         showLoading(false);
@@ -501,6 +555,20 @@ def process_jobs_route():
 def health():
     """Health check endpoint"""
     return jsonify({"status": "healthy", "service": "job-agent-bot"}), 200
+
+
+@app.route("/applications", methods=["GET"])
+def applications():
+    """Return recent job/application statuses; protected by ADMIN_API_KEY."""
+    try:
+        limit = request.args.get("limit", default=100, type=int)
+        return jsonify({
+            "items": get_recent_jobs(limit=limit),
+            "note": "sent means the SMTP server accepted the email; it does not prove the employer received or reviewed it."
+        }), 200
+    except Exception:
+        app.logger.exception("Failed to load application history")
+        return jsonify({"status": "error", "message": "Could not load application history."}), 500
 
 
 @app.route("/stats", methods=["GET"])
