@@ -13,7 +13,7 @@ def is_valid_job_link(url):
         return False
 
     host = parsed.hostname.lower().rstrip(".")
-    if host == "eures.europa.eu" or host.endswith(".eures.europa.eu"):
+    if host == "eures.europa.eu" or host.endswith(".eures.europa.eu") or host.startswith("eures.europa.eu."):
         return False
 
     # Reject lookalike / malformed hosts and embedded credentials.
