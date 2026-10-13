@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import hashlib
 from datetime import datetime, timedelta
 from enum import Enum
 
@@ -91,38 +92,56 @@ def job_exists(job_id):
 
 
 def add_job(job_data):
-    """Add job to queue"""
-    conn = sqlite3.connect(DB_FILE)
-    cur = conn.cursor()
+    """Add a job using a stable ID and SQLite-safe field values.
 
+    Returns False for duplicates or invalid records; never leaves the DB open.
+    """
+    title = str(job_data.get("title") or "").strip()
+    link = str(job_data.get("link") or "").strip()
+    if not title or not link or not link.startswith(("https://", "http://")):
+        return False
+
+    job_id = str(job_data.get("id") or "").strip()
+    if not job_id:
+        identity = link.lower().split("#", 1)[0]
+        job_id = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
+
+    flags = job_data.get("priority_flags", "")
+    if isinstance(flags, (list, tuple, set)):
+        flags = ",".join(str(flag) for flag in flags)
+    else:
+        flags = str(flags or "")
+
+    conn = sqlite3.connect(DB_FILE, timeout=15)
     try:
-        cur.execute("""
-            INSERT INTO jobs 
-            (id, title, link, country, description, source, score, 
-             priority_flags, apply_mode, apply_email, apply_url, 
+        conn.execute("PRAGMA busy_timeout = 15000")
+        conn.execute("""
+            INSERT INTO jobs
+            (id, title, link, country, description, source, score,
+             priority_flags, apply_mode, apply_email, apply_url,
              confidence_score, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            job_data.get("id"),
-            job_data.get("title"),
-            job_data.get("link"),
-            job_data.get("country"),
-            job_data.get("description"),
-            job_data.get("source"),
-            job_data.get("score"),
-            job_data.get("priority_flags", ""),
+            job_id, title, link,
+            str(job_data.get("country") or "Unknown"),
+            str(job_data.get("description") or ""),
+            str(job_data.get("source") or "Unknown"),
+            int(job_data.get("score") or 0),
+            flags,
             job_data.get("apply_mode", ApplicationMode.MANUAL_ALERT.value),
-            job_data.get("apply_email", ""),
-            job_data.get("apply_url", ""),
-            job_data.get("confidence_score", 0.0),
+            str(job_data.get("apply_email") or ""),
+            str(job_data.get("apply_url") or ""),
+            float(job_data.get("confidence_score") or 0.0),
             JobStatus.PENDING.value
         ))
         conn.commit()
-        conn.close()
         return True
     except sqlite3.IntegrityError:
-        conn.close()
         return False
+    except (TypeError, ValueError, sqlite3.Error):
+        return False
+    finally:
+        conn.close()
 
 
 def get_pending_jobs(limit=None):
