@@ -202,3 +202,44 @@ def test_process_never_sends_without_per_job_approval(tmp_path, monkeypatch):
     assert sent["called"] is False
     item = queue_manager.get_recent_jobs(limit=10)[0]
     assert item["status"] == "queued"
+
+
+
+def test_google_web_jobs_uses_configured_google_cse_and_deduplicates(monkeypatch):
+    import sources
+
+    monkeypatch.setenv("GOOGLE_CSE_API_KEY", "test-key")
+    monkeypatch.setenv("GOOGLE_CSE_CX", "test-engine")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"items": [{
+                "title": "Registered Nurse - Official Careers",
+                "link": "https://hospital.example/jobs/nurse",
+                "snippet": "Apply through the official employer careers page",
+                "displayLink": "hospital.example",
+            }]}
+
+    calls = []
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        calls.append(params["q"])
+        return FakeResponse()
+
+    monkeypatch.setattr(sources.requests, "get", fake_get)
+    jobs = sources.google_web_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]["link"] == "https://hospital.example/jobs/nurse"
+    assert jobs[0]["source"] == "Google Web Search"
+    assert len(calls) == 8
+
+
+def test_google_web_jobs_skips_cleanly_without_credentials(monkeypatch):
+    import sources
+
+    monkeypatch.delenv("GOOGLE_CSE_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_CSE_CX", raising=False)
+    assert sources.google_web_jobs() == []
