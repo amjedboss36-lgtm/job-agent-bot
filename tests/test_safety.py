@@ -243,3 +243,43 @@ def test_google_web_jobs_skips_cleanly_without_credentials(monkeypatch):
     monkeypatch.delenv("GOOGLE_CSE_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_CSE_CX", raising=False)
     assert sources.google_web_jobs() == []
+
+
+
+def test_brave_web_jobs_uses_token_and_deduplicates(monkeypatch):
+    import sources
+
+    monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-brave-key")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"web": {"results": [{
+                "title": "Registered Nurse - Official Careers",
+                "url": "https://hospital.example/jobs/nurse",
+                "description": "Apply through the official employer careers page",
+            }]}}
+
+    calls = []
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        assert url == "https://api.search.brave.com/res/v1/web/search"
+        assert headers["X-Subscription-Token"] == "test-brave-key"
+        calls.append(params["q"])
+        return FakeResponse()
+
+    monkeypatch.setattr(sources.requests, "get", fake_get)
+    jobs = sources.brave_web_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]["link"] == "https://hospital.example/jobs/nurse"
+    assert jobs[0]["source"] == "Brave Web Search"
+    assert len(calls) == 8
+
+
+def test_brave_web_jobs_skips_without_token(monkeypatch):
+    import sources
+
+    monkeypatch.delenv("BRAVE_SEARCH_API_KEY", raising=False)
+    assert sources.brave_web_jobs() == []
