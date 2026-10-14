@@ -18,6 +18,7 @@ This service discovers job postings, scores relevance, prepares cover letters, a
 - `CV_FILE_PATH`: path to a candidate-owned PDF/DOC/DOCX file; required for automated email sending (maximum 10 MB). Do not store the CV in the Git repository.
 - `USER_NAME`, `USER_SKILLS`, `USER_EXPERIENCE`: temporary profile values; replace with verified candidate details.
 - `DB_FILE`: optional persistent SQLite path (must be on persistent storage if deployed).
+- `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX`: optional Google Programmable Search credentials. When configured, discovery also searches indexed official employer career pages and publicly indexed job posts on LinkedIn, Facebook, Instagram, and other public pages. This is web-index discovery, not direct authenticated access to those platforms; results can be incomplete and should be verified on the employer's page.
 
 ## Tracking
 - `GET /health`: public health check.
