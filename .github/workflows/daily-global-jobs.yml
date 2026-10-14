@@ -1,0 +1,52 @@
+name: Global job alerts daily
+
+'on':
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: global-job-alerts-daily
+  cancel-in-progress: false
+
+jobs:
+  scrape-and-alert:
+    name: Discover international jobs and send Telegram alerts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE_URL: https://job-agent-bot-999i.onrender.com
+      ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+    steps:
+      - name: Validate secure endpoint configuration
+        shell: bash
+        run: |
+          if [[ -z "$ADMIN_API_KEY" ]]; then
+            echo "::error::Add ADMIN_API_KEY to this repository's Actions secrets and set the same value in Render."
+            exit 1
+          fi
+
+      - name: Discover jobs and add them to the review queue
+        shell: bash
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 30 --max-time 600 \
+            --request POST "$BASE_URL/scrape" \
+            --header "X-Admin-Key: $ADMIN_API_KEY" \
+            --header "Content-Type: application/json" \
+            --output scrape-result.json
+          cat scrape-result.json
+
+      - name: Send Telegram job alerts for review items
+        shell: bash
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 30 --max-time 600 \
+            --request POST "$BASE_URL/process" \
+            --header "X-Admin-Key: $ADMIN_API_KEY" \
+            --header "Content-Type: application/json" \
+            --output process-result.json
+          cat process-result.json
