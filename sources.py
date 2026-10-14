@@ -64,6 +64,66 @@ def arbeitnow_jobs():
 
 
 # =========================
+# Brave Search: full-web search provider
+# Recommended for new setups; Google Custom Search JSON API is closed to new
+# customers. Uses the account token only when BRAVE_SEARCH_API_KEY is configured.
+# =========================
+def brave_web_jobs():
+    import os
+
+    token = os.getenv("BRAVE_SEARCH_API_KEY", "").strip()
+    if not token:
+        print("Brave Search skipped: BRAVE_SEARCH_API_KEY not configured")
+        return []
+
+    queries = [
+        "nursing jobs visa sponsorship official careers page",
+        "site:linkedin.com/jobs nursing jobs visa sponsorship",
+        "site:facebook.com nurse nursing jobs vacancy hiring",
+        "site:instagram.com nurse nursing jobs vacancy hiring",
+        "site:*.com/careers nurse nursing vacancy",
+        "site:*.org/jobs nurse nursing vacancy",
+        "site:*.gov/jobs nurse nursing vacancy",
+        "hospital careers registered nurse international recruitment",
+    ]
+    jobs = []
+    seen = set()
+    endpoint = "https://api.search.brave.com/res/v1/web/search"
+
+    for query in queries:
+        try:
+            response = requests.get(
+                endpoint,
+                params={"q": query, "count": 10},
+                headers={**HEADERS, "X-Subscription-Token": token, "Accept": "application/json"},
+                timeout=20,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            for item in (payload.get("web") or {}).get("results", []):
+                title = (item.get("title") or "").strip()
+                link = (item.get("url") or "").strip()
+                snippet = (item.get("description") or "").strip()
+                if not title or not link.startswith(("https://", "http://")) or link in seen:
+                    continue
+                seen.add(link)
+                jobs.append(
+                    normalize_job(
+                        title,
+                        link,
+                        item.get("profile", {}).get("long_name", "Unknown"),
+                        snippet,
+                        "Brave Web Search",
+                    )
+                )
+        except Exception as exc:
+            print(f"Brave web search failed for query {query!r}: {exc}")
+
+    print(f"Brave web search: {len(jobs)} unique results")
+    return jobs
+
+
+# =========================
 # Google web search: official employer pages + public social job posts
 # Requires Google Programmable Search credentials in GOOGLE_CSE_API_KEY
 # and GOOGLE_CSE_CX. Without credentials the existing public APIs continue
@@ -133,6 +193,7 @@ def collect_all_jobs():
     jobs = []
     jobs.extend(remoteok_jobs())
     jobs.extend(arbeitnow_jobs())
+    jobs.extend(brave_web_jobs())
     jobs.extend(google_web_jobs())
 
     return jobs
