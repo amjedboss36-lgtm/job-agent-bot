@@ -14,6 +14,17 @@ def calculate_score(job):
     text = (job.get("title", "") + " " + job.get("description", "")).lower()
     country = (job.get("country") or "").lower()
 
+    # Penalize hard eligibility barriers that are not evidenced in the candidate profile.
+    hard_barriers = [
+        ("native danish", ["native danish", "native-level danish", "fluent danish", "danish speaking"]),
+        ("eu passport", ["eu passport", "european union passport", "valid eu passport", "eu citizenship"]),
+        ("citizenship", ["eu citizens only", "must be an eu citizen", "european passport required"]),
+    ]
+    for flag, phrases in hard_barriers:
+        if any(phrase in text for phrase in phrases):
+            score -= 35
+            priority_flags.append("MANDATORY_BARRIER_" + flag.upper().replace(" ", "_"))
+
     # =========================
     # 🔥 VISA SPONSORSHIP (HIGHEST PRIORITY)
     # =========================
