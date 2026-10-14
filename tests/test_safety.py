@@ -275,7 +275,7 @@ def test_brave_web_jobs_uses_token_and_deduplicates(monkeypatch):
     assert len(jobs) == 1
     assert jobs[0]["link"] == "https://hospital.example/jobs/nurse"
     assert jobs[0]["source"] == "Brave Web Search"
-    assert len(calls) == 8
+    assert len(calls) == 12
 
 
 def test_brave_web_jobs_skips_without_token(monkeypatch):
@@ -308,7 +308,7 @@ def test_langsearch_web_jobs_uses_token_and_deduplicates(monkeypatch):
     assert len(jobs) == 1
     assert jobs[0]["link"] == "https://hospital.example/jobs/nurse"
     assert jobs[0]["source"] == "LangSearch Web Search"
-    assert len(calls) == 8
+    assert len(calls) == 12
 
 
 def test_langsearch_web_jobs_skips_without_token(monkeypatch):
