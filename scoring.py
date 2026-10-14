@@ -25,6 +25,18 @@ def calculate_score(job):
             score -= 35
             priority_flags.append("MANDATORY_BARRIER_" + flag.upper().replace(" ", "_"))
 
+    # High-risk speculative trading roles are poor default matches and can
+    # expose applicants to deposit, wallet, or investment scams. Penalize rather
+    # than label them fraudulent; any listing still needs independent verification.
+    high_risk_terms = (
+        "crypto trader", "cryptocurrency trader", "crypto trading", "forex trader",
+        "investment trader", "day trader", "trade signals", "trading signals",
+        "deposit to start", "pay to unlock", "wallet seed phrase",
+    )
+    if any(term in text for term in high_risk_terms):
+        score -= 35
+        priority_flags.append("HIGH_RISK_ROLE_REVIEW")
+
     # =========================
     # 🔥 VISA SPONSORSHIP (HIGHEST PRIORITY)
     # =========================
