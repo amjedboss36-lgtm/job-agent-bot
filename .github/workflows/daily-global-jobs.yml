@@ -16,7 +16,7 @@ jobs:
   scrape-and-alert:
     name: Discover international jobs and send Telegram alerts
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       BASE_URL: https://job-agent-bot-999i.onrender.com
       ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
@@ -29,11 +29,22 @@ jobs:
             exit 1
           fi
 
+      - name: Wake Render service and wait for readiness
+        shell: bash
+        run: |
+          echo "Checking whether the Render service is awake..."
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 30 --max-time 60 \
+            --retry 8 --retry-delay 10 --retry-max-time 180 \
+            "$BASE_URL/" --output /dev/null
+          echo "Render service responded successfully."
+
       - name: Discover jobs and add them to the review queue
         shell: bash
         run: |
           curl --fail-with-body --silent --show-error \
             --connect-timeout 30 --max-time 600 \
+            --retry 3 --retry-delay 10 --retry-max-time 180 \
             --request POST "$BASE_URL/scrape" \
             --header "X-Admin-Key: $ADMIN_API_KEY" \
             --header "Content-Type: application/json" \
@@ -45,6 +56,7 @@ jobs:
         run: |
           curl --fail-with-body --silent --show-error \
             --connect-timeout 30 --max-time 600 \
+            --retry 3 --retry-delay 10 --retry-max-time 180 \
             --request POST "$BASE_URL/process" \
             --header "X-Admin-Key: $ADMIN_API_KEY" \
             --header "Content-Type: application/json" \
