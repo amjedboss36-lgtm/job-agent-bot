@@ -42,23 +42,31 @@ jobs:
       - name: Discover jobs and add them to the review queue
         shell: bash
         run: |
-          curl --fail-with-body --silent --show-error \
+          if ! curl --fail-with-body --silent --show-error \
             --connect-timeout 30 --max-time 600 \
             --retry 3 --retry-delay 10 --retry-max-time 180 \
             --request POST "$BASE_URL/scrape" \
             --header "X-Admin-Key: $ADMIN_API_KEY" \
             --header "Content-Type: application/json" \
-            --output scrape-result.json
+            --output scrape-result.json; then
+            echo "Scrape endpoint returned an error. Safe response details:"
+            cat scrape-result.json || true
+            exit 1
+          fi
           cat scrape-result.json
 
       - name: Send Telegram job alerts for review items
         shell: bash
         run: |
-          curl --fail-with-body --silent --show-error \
+          if ! curl --fail-with-body --silent --show-error \
             --connect-timeout 30 --max-time 600 \
             --retry 3 --retry-delay 10 --retry-max-time 180 \
             --request POST "$BASE_URL/process" \
             --header "X-Admin-Key: $ADMIN_API_KEY" \
             --header "Content-Type: application/json" \
-            --output process-result.json
+            --output process-result.json; then
+            echo "Process endpoint returned an error. Safe response details:"
+            cat process-result.json || true
+            exit 1
+          fi
           cat process-result.json
