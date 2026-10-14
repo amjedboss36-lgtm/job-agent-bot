@@ -273,7 +273,7 @@ def format_job_notification(job_data, decision_info, success=None):
 *System Note:* {reasoning}
 """
 
-    message += "\\n\\n🤖 *تقييم أولي للملاءمة:*\\n" + get_job_fit_note(job_data)
+    message += "\n\n🤖 *تقييم أولي للملاءمة:*\n" + get_job_fit_note(job_data)
     return message
 
 
