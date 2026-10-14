@@ -64,6 +64,64 @@ def arbeitnow_jobs():
 
 
 # =========================
+# LangSearch: free full-web search provider (API key required)
+# =========================
+def langsearch_web_jobs():
+    import os
+
+    token = os.getenv("LANGSEARCH_API_KEY", "").strip()
+    if not token:
+        print("LangSearch skipped: LANGSEARCH_API_KEY not configured")
+        return []
+
+    queries = [
+        "nursing jobs visa sponsorship official careers page",
+        "site:linkedin.com/jobs nursing jobs visa sponsorship",
+        "site:facebook.com nurse nursing jobs vacancy hiring",
+        "site:instagram.com nurse nursing jobs vacancy hiring",
+        "site:*.com/careers nurse nursing vacancy",
+        "site:*.org/jobs nurse nursing vacancy",
+        "site:*.gov/jobs nurse nursing vacancy",
+        "hospital careers registered nurse international recruitment",
+    ]
+    jobs = []
+    seen = set()
+    endpoint = "https://api.langsearch.com/v1/web-search"
+    headers = {**HEADERS, "Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json"}
+
+    for query in queries:
+        try:
+            response = requests.post(
+                endpoint,
+                json={"query": query, "count": 10, "contents": {"text": True}},
+                headers=headers,
+                timeout=20,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            data = payload.get("data") or {}
+            pages = data.get("webPages") or data.get("web_pages") or payload.get("webPages") or {}
+            items = pages.get("value") or pages.get("results") or data.get("results") or []
+            for item in items:
+                title = (item.get("name") or item.get("title") or "").strip()
+                link = (item.get("url") or item.get("link") or "").strip()
+                snippet = (item.get("snippet") or item.get("text") or item.get("description") or "").strip()
+                if not title or not link.startswith(("https://", "http://")) or link in seen:
+                    continue
+                seen.add(link)
+                jobs.append(normalize_job(
+                    title, link,
+                    item.get("siteName") or item.get("displayUrl") or "LangSearch",
+                    snippet, "LangSearch Web Search",
+                ))
+        except Exception as exc:
+            print(f"LangSearch failed for query {query!r}: {exc}")
+
+    print(f"LangSearch web search: {len(jobs)} unique results")
+    return jobs
+
+
+# =========================
 # Brave Search: full-web search provider
 # Recommended for new setups; Google Custom Search JSON API is closed to new
 # customers. Uses the account token only when BRAVE_SEARCH_API_KEY is configured.
@@ -193,6 +251,7 @@ def collect_all_jobs():
     jobs = []
     jobs.extend(remoteok_jobs())
     jobs.extend(arbeitnow_jobs())
+    jobs.extend(langsearch_web_jobs())
     jobs.extend(brave_web_jobs())
     jobs.extend(google_web_jobs())
 

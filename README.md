@@ -18,7 +18,8 @@ This service discovers job postings, scores relevance, prepares cover letters, a
 - `CV_FILE_PATH`: path to a candidate-owned PDF/DOC/DOCX file; required for automated email sending (maximum 10 MB). Do not store the CV in the Git repository.
 - `USER_NAME`, `USER_SKILLS`, `USER_EXPERIENCE`: temporary profile values; replace with verified candidate details.
 - `DB_FILE`: optional persistent SQLite path (must be on persistent storage if deployed).
-- `BRAVE_SEARCH_API_KEY`: recommended full-web search credential for new setups; searches indexed official employer career pages and publicly indexed social job posts.
+- `LANGSEARCH_API_KEY`: recommended LangSearch API key for full-web search across indexed official employer career pages and public social job posts. LangSearch runs first when configured; results depend on account quota and index coverage.
+- `BRAVE_SEARCH_API_KEY`: optional fallback full-web search credential; searches indexed official employer career pages and publicly indexed social job posts.
 - `GOOGLE_CSE_API_KEY` and `GOOGLE_CSE_CX`: optional legacy Google Programmable Search credentials for existing API customers only. Google has closed this API to new customers and plans to discontinue it on January 1, 2027. When configured, discovery also searches indexed official employer career pages and publicly indexed job posts on LinkedIn, Facebook, Instagram, and other public pages. This is web-index discovery, not direct authenticated access to those platforms; results can be incomplete and should be verified on the employer's page.
 
 ## Tracking
@@ -35,3 +36,6 @@ Statuses distinguish pending, queued for review, sent, failed, and skipped. A qu
 python -m pip install -r requirements.txt pytest
 pytest -q
 ```
+
+
+LangSearch uses a Bearer API key in request headers. Never commit API keys to source control. Social results are based on public indexed pages, not authenticated access.

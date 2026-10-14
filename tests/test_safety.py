@@ -283,3 +283,35 @@ def test_brave_web_jobs_skips_without_token(monkeypatch):
 
     monkeypatch.delenv("BRAVE_SEARCH_API_KEY", raising=False)
     assert sources.brave_web_jobs() == []
+
+
+
+def test_langsearch_web_jobs_uses_token_and_deduplicates(monkeypatch):
+    import sources
+    monkeypatch.setenv("LANGSEARCH_API_KEY", "test-langsearch-key")
+    class FakeResponse:
+        def raise_for_status(self): return None
+        def json(self):
+            return {"data": {"webPages": {"value": [
+                {"name": "Registered Nurse - Official Careers", "url": "https://hospital.example/jobs/nurse", "snippet": "Apply through the official employer careers page"},
+                {"name": "Duplicate", "url": "https://hospital.example/jobs/nurse", "snippet": "Duplicate"},
+                {"name": "Unsafe", "url": "javascript:alert(1)", "snippet": "Ignore"},
+            ]}}}
+    calls = []
+    def fake_post(url, json=None, headers=None, timeout=None):
+        assert url == "https://api.langsearch.com/v1/web-search"
+        assert headers["Authorization"] == "Bearer test-langsearch-key"
+        calls.append(json["query"])
+        return FakeResponse()
+    monkeypatch.setattr(sources.requests, "post", fake_post)
+    jobs = sources.langsearch_web_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]["link"] == "https://hospital.example/jobs/nurse"
+    assert jobs[0]["source"] == "LangSearch Web Search"
+    assert len(calls) == 8
+
+
+def test_langsearch_web_jobs_skips_without_token(monkeypatch):
+    import sources
+    monkeypatch.delenv("LANGSEARCH_API_KEY", raising=False)
+    assert sources.langsearch_web_jobs() == []
