@@ -201,6 +201,7 @@ def format_job_notification(job_data, decision_info, success=None):
 *Source:* {source}
 
 {confidence_display}
+*تنبيه:* هذا تقدير آلي لرابط/طريقة التقديم، وليس نسبة موثوقية صاحب العمل أو ضمانًا لصحة الشاغر.
 
 *Priority Flags:*
 {flags_display}
@@ -227,6 +228,7 @@ def format_job_notification(job_data, decision_info, success=None):
 *Source:* {source}
 
 {confidence_display}
+*تنبيه:* هذا تقدير آلي لرابط/طريقة التقديم، وليس نسبة موثوقية صاحب العمل أو ضمانًا لصحة الشاغر.
 
 *Priority Flags:*
 {flags_display}
@@ -314,6 +316,6 @@ def notify_summary(sent_count, skipped_count, failed_count):
 • Failed: {failed_count}
 
 ━━━━━━━━━━━━━━━━━━
-Next run: Tomorrow 00:00 UTC
+Next scheduled scan: daily at 18:30 UTC (21:30 Yemen time)
 """
     return send_message(message)

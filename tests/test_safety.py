@@ -275,7 +275,7 @@ def test_brave_web_jobs_uses_token_and_deduplicates(monkeypatch):
     assert len(jobs) == 1
     assert jobs[0]["link"] == "https://hospital.example/jobs/nurse"
     assert jobs[0]["source"] == "Brave Web Search"
-    assert len(calls) == 8
+    assert len(calls) == 12
 
 
 def test_brave_web_jobs_skips_without_token(monkeypatch):
@@ -308,10 +308,46 @@ def test_langsearch_web_jobs_uses_token_and_deduplicates(monkeypatch):
     assert len(jobs) == 1
     assert jobs[0]["link"] == "https://hospital.example/jobs/nurse"
     assert jobs[0]["source"] == "LangSearch Web Search"
-    assert len(calls) == 8
+    assert len(calls) == 12
 
 
 def test_langsearch_web_jobs_skips_without_token(monkeypatch):
     import sources
     monkeypatch.delenv("LANGSEARCH_API_KEY", raising=False)
     assert sources.langsearch_web_jobs() == []
+
+
+def test_speculative_crypto_trading_jobs_are_downranked_for_manual_review():
+    from scoring import calculate_score
+
+    result = calculate_score({
+        "title": "Junior Crypto Analyst & Trader",
+        "description": "Remote crypto trading role with entry-level requirements",
+        "country": "Unknown",
+    })
+    assert "HIGH_RISK_ROLE_REVIEW" in result["priority_flags"]
+    assert result["score"] < 30
+
+
+def test_telegram_confidence_warning_does_not_claim_employer_is_verified():
+    from telegram_bot import format_job_notification
+    from queue_manager import ApplicationMode
+
+    message = format_job_notification(
+        {
+            "title": "Registered Nurse",
+            "country": "Canada",
+            "score": 70,
+            "source": "Test",
+            "link": "https://jobs.example.org/nurse",
+            "description": "Nursing vacancy",
+        },
+        {
+            "mode": ApplicationMode.GUIDED_APPLY,
+            "confidence_score": 0.75,
+            "reasoning": "Apply link detected. Manual steps required.",
+            "apply_url": "https://jobs.example.org/nurse/apply",
+        },
+    )
+    assert "ليس نسبة موثوقية صاحب العمل" in message
+    assert "Manual steps required" in message
