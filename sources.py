@@ -93,7 +93,7 @@ def langsearch_web_jobs():
         try:
             response = requests.post(
                 endpoint,
-                json={"query": query, "count": 10, "contents": {"text": True}},
+                json={"query": query, "count": 10},
                 headers=headers,
                 timeout=20,
             )
