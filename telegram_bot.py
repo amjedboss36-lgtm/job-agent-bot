@@ -132,6 +132,32 @@ This is an automated application. Please contact for further information.
         return False
 
 
+def get_job_fit_note(job_data):
+    """Provide a short, cautious Arabic fit assessment without extra API dependencies."""
+    title = str(job_data.get("title") or "").lower()
+    description = str(job_data.get("description") or "").lower()
+    combined = title + " " + description
+    notes = []
+    if any(term in combined for term in ("nurse", "nursing", "registered nurse", "ممرض", "تمريض")):
+        notes.append("الوظيفة قريبة من دراستك وتدريبك في التمريض.")
+    if any(term in combined for term in ("human resources", "hr manager", "recruitment", "موارد بشرية")):
+        notes.append("خلفيتك في إدارة الأعمال ودراسة الموارد البشرية قد تكون ذات صلة.")
+    if any(term in combined for term in ("hospital administration", "healthcare administration", "إدارة مستشفى", "إدارة صحية")):
+        notes.append("تدريبك في إدارة المستشفيات قد يكون مناسبًا لبعض المهام.")
+    barriers = []
+    if any(term in combined for term in ("native danish", "fluent danish", "danish speaking", "دانماركية بطلاقة")):
+        barriers.append("يشترط الإعلان الدنماركية، وهي غير مثبتة في ملفك.")
+    if any(term in combined for term in ("eu passport", "eu citizenship", "european passport", "جواز سفر أوروبي")):
+        barriers.append("يشترط الإعلان جوازًا/جنسية أوروبية، وهي غير مثبتة في ملفك.")
+    if any(term in combined for term in ("must be a us citizen", "us citizenship required", "security clearance")):
+        barriers.append("قد يوجد شرط جنسية أو تصريح أمني غير متحقق.")
+    if barriers:
+        return " ".join(barriers) + " الملاءمة: ضعيفة ما لم تستوفِ هذه الشروط."
+    if notes:
+        return " ".join(notes) + " تحقق من اللغة والتأشيرة والترخيص والخبرة المطلوبة قبل التقديم."
+    return "لم يظهر تطابق واضح من المسمى وحده؛ راجع المؤهلات واللغة والتأشيرة والترخيص قبل التقديم."
+
+
 def format_job_notification(job_data, decision_info, success=None):
     """
     Format comprehensive job notification for Telegram.
@@ -247,6 +273,7 @@ def format_job_notification(job_data, decision_info, success=None):
 *System Note:* {reasoning}
 """
 
+    message += "\\n\\n🤖 *تقييم أولي للملاءمة:*\\n" + get_job_fit_note(job_data)
     return message
 
 
