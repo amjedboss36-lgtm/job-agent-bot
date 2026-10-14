@@ -39,3 +39,5 @@ pytest -q
 
 
 LangSearch uses a Bearer API key in request headers. Never commit API keys to source control. Social results are based on public indexed pages, not authenticated access.
+
+The LangSearch integration requests snippets rather than full page text to conserve the free daily token allowance.
