@@ -74,15 +74,21 @@ def langsearch_web_jobs():
         print("LangSearch skipped: LANGSEARCH_API_KEY not configured")
         return []
 
+    # Focus on realistic opportunities aligned with nursing, healthcare/business
+    # administration, operations and entry-level roles; avoid generic trading noise.
     queries = [
-        "nursing jobs visa sponsorship official careers page",
-        "site:linkedin.com/jobs nursing jobs visa sponsorship",
-        "site:facebook.com nurse nursing jobs vacancy hiring",
-        "site:instagram.com nurse nursing jobs vacancy hiring",
-        "site:*.com/careers nurse nursing vacancy",
-        "site:*.org/jobs nurse nursing vacancy",
-        "site:*.gov/jobs nurse nursing vacancy",
-        "hospital careers registered nurse international recruitment",
+        "nursing jobs visa sponsorship official hospital careers page",
+        "registered nurse staff nurse healthcare assistant visa sponsorship",
+        "hospital administration healthcare administration jobs entry level",
+        "business administration assistant operations coordinator logistics jobs",
+        "customer service administrative assistant data entry jobs visa sponsorship",
+        "site:linkedin.com/jobs nursing OR healthcare administration visa sponsorship",
+        "site:facebook.com nurse nursing hospital jobs vacancy hiring",
+        "site:instagram.com nurse nursing hospital jobs vacancy hiring",
+        "site:*.com/careers nurse hospital administrator operations assistant",
+        "site:*.org/jobs nurse healthcare administration vacancy",
+        "site:*.gov/jobs nurse healthcare administration vacancy",
+        "international recruitment hospital nursing jobs official employer",
     ]
     jobs = []
     seen = set()
@@ -134,15 +140,21 @@ def brave_web_jobs():
         print("Brave Search skipped: BRAVE_SEARCH_API_KEY not configured")
         return []
 
+    # Focus on realistic opportunities aligned with nursing, healthcare/business
+    # administration, operations and entry-level roles; avoid generic trading noise.
     queries = [
-        "nursing jobs visa sponsorship official careers page",
-        "site:linkedin.com/jobs nursing jobs visa sponsorship",
-        "site:facebook.com nurse nursing jobs vacancy hiring",
-        "site:instagram.com nurse nursing jobs vacancy hiring",
-        "site:*.com/careers nurse nursing vacancy",
-        "site:*.org/jobs nurse nursing vacancy",
-        "site:*.gov/jobs nurse nursing vacancy",
-        "hospital careers registered nurse international recruitment",
+        "nursing jobs visa sponsorship official hospital careers page",
+        "registered nurse staff nurse healthcare assistant visa sponsorship",
+        "hospital administration healthcare administration jobs entry level",
+        "business administration assistant operations coordinator logistics jobs",
+        "customer service administrative assistant data entry jobs visa sponsorship",
+        "site:linkedin.com/jobs nursing OR healthcare administration visa sponsorship",
+        "site:facebook.com nurse nursing hospital jobs vacancy hiring",
+        "site:instagram.com nurse nursing hospital jobs vacancy hiring",
+        "site:*.com/careers nurse hospital administrator operations assistant",
+        "site:*.org/jobs nurse healthcare administration vacancy",
+        "site:*.gov/jobs nurse healthcare administration vacancy",
+        "international recruitment hospital nursing jobs official employer",
     ]
     jobs = []
     seen = set()
