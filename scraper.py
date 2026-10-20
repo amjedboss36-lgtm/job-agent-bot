@@ -25,8 +25,27 @@ def scrape_jobs():
     # Prefer public job-board APIs where available; keep failures isolated.
     try:
         api_jobs = collect_all_jobs()
-        all_jobs.extend(api_jobs[:100])
-        print(f"✅ Public job APIs: {len(api_jobs[:100])} jobs")
+
+        # Do not truncate the combined list before balancing sources: RemoteOK is
+        # collected first and can fill the old 100-item slice, silently discarding
+        # Arbeitnow and web-search results. Keep a bounded, fair sample per source.
+        by_source = {}
+        for job in api_jobs:
+            source = str(job.get("source") or "Unknown")
+            by_source.setdefault(source, []).append(job)
+
+        source_names = list(by_source)
+        selected_api_jobs = []
+        per_source_limit = 100
+        for source in source_names:
+            selected_api_jobs.extend(by_source[source][:per_source_limit])
+
+        all_jobs.extend(selected_api_jobs)
+        print(
+            "✅ Public job APIs/search: "
+            f"{len(selected_api_jobs)} jobs across {len(source_names)} sources "
+            f"({', '.join(f'{name}={len(by_source[name][:per_source_limit])}' for name in source_names)})"
+        )
     except Exception as e:
         print(f"❌ Public job APIs failed: {e}")
     
