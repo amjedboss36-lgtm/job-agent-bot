@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-from sources import collect_all_jobs
+from sources import collect_all_jobs\nfrom filters import is_valid_job_link, is_informational_result
 
 # Job scraping sources
 SOURCES = {
@@ -79,7 +79,12 @@ def scrape_jobs():
         link = (job.get("link") or "").strip()
         title = (job.get("title") or "").strip()
         parsed = urlparse(link)
-        if not title or parsed.scheme not in ("http", "https") or not parsed.netloc:
+        if not title or not is_valid_job_link(link):
+            continue
+        # Keep informational guides out of the job queue so they cannot be
+        # scored as real vacancies or sent as job alerts.
+        if is_informational_result(title, link, job.get("description", "")):
+            print(f"⏭️ Skipped informational result: {title} ({link})")
             continue
         canonical = link.split("#", 1)[0].rstrip("/")
         if canonical not in unique:
