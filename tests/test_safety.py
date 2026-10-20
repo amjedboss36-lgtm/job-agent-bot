@@ -351,3 +351,62 @@ def test_telegram_confidence_warning_does_not_claim_employer_is_verified():
     )
     assert "ليس نسبة موثوقية صاحب العمل" in message
     assert "Manual steps required" in message
+
+
+
+def test_informational_articles_are_not_emitted_as_job_alerts():
+    from filters import is_informational_result
+
+    assert is_informational_result(
+        "How to Get Visa Sponsorship Jobs in UK?",
+        "https://leverageedu.com/blog/visa-sponsorship-jobs-in-uk/",
+        "A guide to visa sponsorship.",
+    )
+    assert is_informational_result(
+        "Nursing Jobs in the USA With Visa Sponsorship – How to Apply",
+        "https://ec2-44-221-19-11.compute-1.amazonaws.com/nursing-jobs/",
+        "How to apply for a USA visa sponsorship nursing job.",
+    )
+    assert is_informational_result(
+        "Jobs in Canada with Visa Sponsorship for Foreigners",
+        "https://prayertitus.blogspot.com/2024/06/jobs-in-canada-with-visa-sponsorship.html",
+        "A general roundup of jobs and visa sponsorship.",
+    )
+
+
+def test_specific_vacancies_are_not_mistaken_for_guides():
+    from filters import is_informational_result
+
+    assert not is_informational_result(
+        "Registered Nurse - International Sponsorship",
+        "https://careers.example-hospital.org/jobs/registered-nurse-123",
+        "Apply now for the registered nurse vacancy. Requisition 123.",
+    )
+
+
+def test_scraper_excludes_information_articles_but_keeps_real_jobs(monkeypatch):
+    import scraper
+
+    monkeypatch.setattr(scraper, "collect_all_jobs", lambda: [
+        {
+            "title": "How to Get Visa Sponsorship Jobs in UK?",
+            "link": "https://leverageedu.com/blog/visa-sponsorship-jobs-in-uk/",
+            "country": "Unknown",
+            "description": "A guide to visa sponsorship.",
+            "source": "LangSearch Web Search",
+        },
+        {
+            "title": "Registered Nurse - International Sponsorship",
+            "link": "https://careers.example-hospital.org/jobs/registered-nurse-123",
+            "country": "USA",
+            "description": "Apply now for the registered nurse vacancy.",
+            "source": "LangSearch Web Search",
+        },
+    ])
+    monkeypatch.setattr(scraper, "scrape_indeed", lambda: [])
+    monkeypatch.setattr(scraper, "scrape_linkedin", lambda: [])
+    monkeypatch.setattr(scraper, "scrape_greenhouse", lambda: [])
+
+    jobs = scraper.scrape_jobs()
+    assert len(jobs) == 1
+    assert jobs[0]["title"] == "Registered Nurse - International Sponsorship"
