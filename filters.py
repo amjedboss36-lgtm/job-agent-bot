@@ -82,15 +82,15 @@ import re
 
 
 _INFORMATIONAL_TITLE_PATTERNS = (
-    r"^how to\\b",
-    r"^a guide to\\b",
-    r"^the ultimate guide\\b",
-    r"^guide to\\b",
-    r"^tips for\\b",
-    r"^everything you need to know\\b",
-    r"^steps to\\b",
-    r"^how .* apply\\b",
-    r"^how .* get .* visa sponsorship\\b",
+    r"^how to\b",
+    r"^a guide to\b",
+    r"^the ultimate guide\b",
+    r"^guide to\b",
+    r"^tips for\b",
+    r"^everything you need to know\b",
+    r"^steps to\b",
+    r"^how .* apply\b",
+    r"^how .* get .* visa sponsorship\b",
 )
 
 
@@ -115,9 +115,9 @@ def is_informational_result(title, url, description=""):
 
     # The dated Blogspot page in the reported false positives is a general
     # sponsorship roundup, not a named vacancy. Do not blanket-block all blogs.
-    if (host.endswith(".blogspot.com") and re.search(r"/20\\d{2}/\\d{1,2}/", path)
+    if (host.endswith(".blogspot.com") and re.search(r"/20\d{2}/\d{1,2}/", path)
             and "visa sponsorship" in title_text
-            and not re.search(r"\\b(nurse|nursing|registered nurse|administrator|assistant|technician|driver|accountant|receptionist)\\b", title_text)):
+            and not re.search(r"\b(nurse|nursing|registered nurse|administrator|assistant|technician|driver|accountant|receptionist)\b", title_text)):
         return True
 
     # A raw cloud-compute hostname is not enough to establish employer identity;
@@ -134,6 +134,6 @@ def is_informational_result(title, url, description=""):
         "everything you need to know about", "tips to find a job",
     )
     return any(phrase in description_text for phrase in editorial_phrases) and not re.search(
-        r"\\b(apply now|submit application|job id|vacancy closes|closing date|requisition)\\b",
+        r"\b(apply now|submit application|job id|vacancy closes|closing date|requisition)\b",
         description_text,
     )
