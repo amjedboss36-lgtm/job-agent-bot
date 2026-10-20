@@ -3,7 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 
-from sources import collect_all_jobs\nfrom filters import is_valid_job_link, is_informational_result
+from sources import collect_all_jobs
+from filters import is_valid_job_link, is_informational_result
 
 # Job scraping sources
 SOURCES = {
